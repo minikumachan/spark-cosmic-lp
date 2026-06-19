@@ -1,37 +1,31 @@
 ---
-// P0-2: フォント確認スペシメン（極端ウェイト対比）。P0-3 で Base レイアウト＋本実装に置換。
-import "../styles/fonts.css";
-import "../styles/theme.css";
+// P0-3: Base レイアウト適用。トークン/タイポ確認スペシメン（P1 で本セクション実装に置換）。
+import Base from "../layouts/Base.astro";
 ---
 
-<!doctype html>
-<html lang="ja">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>spark — type &amp; tokens</title>
-  </head>
-  <body>
-    <main class="grid min-h-dvh place-items-center gap-8 bg-bg p-8 text-text">
-      <div class="text-center">
-        <p class="font-display text-2xl font-extralight tracking-tight text-muted">
-          EXTRA&nbsp;LIGHT&nbsp;200
-        </p>
-        <h1 class="font-display text-8xl font-bold tracking-tight">spark</h1>
-      </div>
+<Base
+  title="ブランドも、体験も、次のステージへ"
+  description="制作・ブランディングスタジオ spark のLP（基盤構築中）"
+>
+  <main id="main" class="grid min-h-dvh place-items-center gap-8 bg-bg p-8 text-text">
+    <div class="text-center">
+      <p class="font-display text-2xl font-extralight tracking-tight text-muted">
+        EXTRA&nbsp;LIGHT&nbsp;200
+      </p>
+      <h1 class="font-display text-8xl font-bold tracking-tight">spark</h1>
+    </div>
 
-      <p class="font-body text-lg text-muted">ブランドも、体験も、次のステージへ。</p>
-      <p class="font-mono text-sm text-muted">¥300,000 — 01 / 07</p>
+    <p class="font-body text-lg text-muted">ブランドも、体験も、次のステージへ。</p>
+    <p class="font-mono text-sm text-muted">¥300,000 — 01 / 07</p>
 
-      <div class="flex flex-wrap items-center justify-center gap-3">
-        <span class="rounded-button bg-blue px-4 py-2 text-sm text-white">blue</span>
-        <span class="rounded-button bg-magenta px-4 py-2 text-sm text-white">magenta</span>
-        <span class="rounded-button bg-lime px-4 py-2 text-sm text-text">lime</span>
-      </div>
+    <div class="flex flex-wrap items-center justify-center gap-3">
+      <span class="rounded-button bg-blue px-4 py-2 text-sm text-white">blue</span>
+      <span class="rounded-button bg-magenta px-4 py-2 text-sm text-white">magenta</span>
+      <span class="rounded-button bg-lime px-4 py-2 text-sm text-text">lime</span>
+    </div>
 
-      <div class="rounded-card bg-surface p-6 font-mono text-sm shadow-card">
-        rounded-card / bg-surface / shadow-card
-      </div>
-    </main>
-  </body>
-</html>
+    <div class="rounded-card bg-surface p-6 font-mono text-sm shadow-card">
+      rounded-card / bg-surface / shadow-card
+    </div>
+  </main>
+</Base>
