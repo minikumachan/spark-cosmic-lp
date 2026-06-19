@@ -1,0 +1,19 @@
+# 改行コードはリポジトリ内では常に LF に正規化（Mac↔Windows 共有のため必須）
+* text=auto eol=lf
+
+# バイナリは変換しない
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.webp  binary
+*.avif  binary
+*.ico   binary
+*.gif   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.otf   binary
+*.glb   binary
+*.gltf  binary
+*.mp4   binary
+*.zip   binary

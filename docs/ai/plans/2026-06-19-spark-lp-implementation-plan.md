@@ -4,9 +4,9 @@
 
 **Goal:** spark（制作/ブランディング会社）の高品質LPを、Astro+R3F+Tailwind v4 で「1点豪華・見えない技術力」方針のもと、CWV満点・WCAG 2.2 AA・右サイズセキュリティで実装する。
 
-**Architecture:** Astro 5 を静的出力（hybrid: フォームのみオンデマンドendpoint）で構築。視覚演出は React island に隔離し `client:visible` で遅延ロード。デザイントークンを Tailwind v4 `@theme` + CSS変数に一元化し light/dark を data-theme で切替。Cloudflare Pages にデプロイしエッジで WAF/DDoS/Bot 防御を得る。
+**Architecture:** Astro 6 を静的出力（hybrid: フォームのみオンデマンドendpoint）で構築。視覚演出は React island に隔離し `client:visible` で遅延ロード。デザイントークンを Tailwind v4 `@theme` + CSS変数に一元化し light/dark を data-theme で切替。Cloudflare Pages にデプロイしエッジで WAF/DDoS/Bot 防御を得る。
 
-**Tech Stack:** Astro 5 / React islands / Tailwind v4 / TypeScript(strict) / @react-three/fiber + drei + three / motion + ネイティブCSS scroll-driven / react-hook-form + zod / Astro Content Collections / sharp / Cloudflare adapter / Lighthouse CI / @axe-core/playwright
+**Tech Stack:** Astro 6 / React islands / Tailwind v4 / TypeScript(strict) / @react-three/fiber + drei + three / motion + ネイティブCSS scroll-driven / react-hook-form + zod / Astro Content Collections / sharp / Cloudflare adapter / Lighthouse CI / @axe-core/playwright
 
 ## Global Constraints
 
