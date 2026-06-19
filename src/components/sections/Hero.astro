@@ -1,5 +1,6 @@
 ---
 import Container from "../ui/Container.astro";
+import Hero3D from "../three/Hero3D.tsx";
 import { site } from "../../lib/content";
 import { assetShape } from "../../lib/assets";
 const { hero } = site;
@@ -53,7 +54,9 @@ const { hero } = site;
       </div>
 
       <div class="relative hidden lg:block" aria-hidden="true">
-        <div class="hero-visual aspect-square w-full rounded-[2rem]"></div>
+        <div class="hero-visual relative aspect-square w-full overflow-hidden rounded-[2rem]">
+          <Hero3D client:visible />
+        </div>
         <img
           src={assetShape("shape_squiggle_purple")}
           alt=""
