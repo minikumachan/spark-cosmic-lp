@@ -1,49 +1,17 @@
 ---
-// P0: Base レイアウト＋デザイントークン/タイポ確認スペシメン。
-// （P1 で本セクション実装に置換。アクセントは文字を載せずスウォッチ表示で a11y を担保）
-// Tailwind は動的クラス名を検出できないため、完全なクラス文字列をマップで保持する。
 import Base from "../layouts/Base.astro";
-
-const swatches = [
-  { name: "blue", cls: "bg-blue" },
-  { name: "cyan", cls: "bg-cyan" },
-  { name: "magenta", cls: "bg-magenta" },
-  { name: "coral", cls: "bg-coral" },
-  { name: "orange", cls: "bg-orange" },
-  { name: "lime", cls: "bg-lime" },
-  { name: "green", cls: "bg-green" },
-  { name: "purple", cls: "bg-purple" },
-] as const;
+import Header from "../components/sections/Header.astro";
+import Hero from "../components/sections/Hero.astro";
+import Services from "../components/sections/Services.astro";
 ---
 
 <Base
   title="ブランドも、体験も、次のステージへ"
-  description="制作・ブランディングスタジオ spark のLP（基盤構築中）"
+  description="spark は、ブランド戦略からデザイン・開発までを一気通貫で手がけるクリエイティブスタジオです。"
 >
-  <main id="main" class="grid min-h-dvh place-items-center gap-10 bg-bg p-8 text-text">
-    <div class="text-center">
-      <p class="font-display text-2xl font-extralight tracking-tight text-muted">
-        EXTRA&nbsp;LIGHT&nbsp;200
-      </p>
-      <h1 class="font-display text-8xl font-bold tracking-tight">spark</h1>
-    </div>
-
-    <p class="font-body text-lg text-muted">ブランドも、体験も、次のステージへ。</p>
-    <p class="font-mono text-sm text-muted">¥300,000 — 01 / 07</p>
-
-    <ul class="flex flex-wrap items-center justify-center gap-5">
-      {
-        swatches.map((s) => (
-          <li class="flex flex-col items-center gap-2">
-            <span class={`h-11 w-11 rounded-button shadow-card ${s.cls}`}></span>
-            <span class="font-mono text-xs text-muted">{s.name}</span>
-          </li>
-        ))
-      }
-    </ul>
-
-    <div class="rounded-card bg-surface p-6 font-mono text-sm text-muted shadow-card">
-      rounded-card / bg-surface / shadow-card
-    </div>
+  <Header />
+  <main id="main">
+    <Hero />
+    <Services />
   </main>
 </Base>

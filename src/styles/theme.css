@@ -10,12 +10,16 @@
     --surface: #f7f9fc;
     --text: #0b1230;
     --muted: #68708a;
+    /* 小さなテキスト用アクセント（AA担保）。light=blue(5.5:1 on white) */
+    --accent-ink: #0757ff;
   }
   :root[data-theme="dark"] {
     --bg: #0b1230;
     --surface: #131a3a;
     --text: #f5f7fb;
     --muted: #9aa3c0;
+    /* dark は濃紺背景でblueが沈むため明るいcyanに（8:1 on navy） */
+    --accent-ink: #4db8ff;
   }
   html,
   body {
@@ -30,6 +34,7 @@
   --color-surface: var(--surface);
   --color-text: var(--text);
   --color-muted: var(--muted);
+  --color-ink: var(--accent-ink);
 
   /* accent（両テーマ共通・CTA/アイコン/装飾に限定） */
   --color-blue: #0757ff;

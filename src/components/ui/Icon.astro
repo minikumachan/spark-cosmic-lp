@@ -1,0 +1,21 @@
+---
+import { assetIcon } from "../../lib/assets";
+
+interface Props {
+  name: string;
+  size?: number;
+  class?: string;
+}
+const { name, size = 48, class: cls = "" } = Astro.props;
+---
+
+<img
+  src={assetIcon(name)}
+  alt=""
+  aria-hidden="true"
+  width={size}
+  height={size}
+  loading="lazy"
+  decoding="async"
+  class:list={["inline-block", cls]}
+/>

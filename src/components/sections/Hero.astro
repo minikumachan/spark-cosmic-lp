@@ -1,0 +1,81 @@
+---
+import Container from "../ui/Container.astro";
+import { site } from "../../lib/content";
+import { assetShape } from "../../lib/assets";
+const { hero } = site;
+---
+
+<section class="relative overflow-hidden pb-20 pt-32 sm:pb-28 sm:pt-40">
+  <div class="hero-mesh pointer-events-none absolute inset-0 -z-10" aria-hidden="true"></div>
+  <img
+    src={assetShape("shape_blob_gradient_blue")}
+    alt=""
+    aria-hidden="true"
+    class="pointer-events-none absolute -right-24 -top-10 -z-10 w-[36rem] max-w-none opacity-70 blur-[1px]"
+  />
+
+  <Container>
+    <div class="grid items-center gap-12 lg:grid-cols-[1.1fr_0.9fr]">
+      <div>
+        <p class="font-mono text-sm uppercase tracking-[0.25em] text-ink">{hero.eyebrow}</p>
+
+        <h1 class="mt-5 font-display text-5xl font-bold leading-[1.04] tracking-tight sm:text-7xl">
+          {hero.title[0]}<br /><span class="text-ink">{hero.title[1]}</span>
+        </h1>
+
+        <p class="mt-7 max-w-xl font-body text-lg text-muted sm:text-xl">{hero.lead}</p>
+
+        <div class="mt-10 flex flex-wrap items-center gap-4">
+          <a
+            href={hero.primary.href}
+            class="rounded-button bg-blue px-7 py-3.5 font-body font-medium text-white shadow-floating transition-transform hover:-translate-y-0.5 motion-reduce:transform-none"
+          >
+            {hero.primary.label}
+          </a>
+          <a
+            href={hero.secondary.href}
+            class="rounded-button px-7 py-3.5 font-body font-medium text-text ring-1 ring-text/15 transition-colors hover:bg-surface"
+          >
+            {hero.secondary.label}
+          </a>
+        </div>
+
+        <dl class="mt-14 flex flex-wrap gap-x-10 gap-y-4">
+          {
+            hero.stats.map((s) => (
+              <div>
+                <dt class="font-display text-3xl font-bold sm:text-4xl">{s.value}</dt>
+                <dd class="font-body text-sm text-muted">{s.label}</dd>
+              </div>
+            ))
+          }
+        </dl>
+      </div>
+
+      <div class="relative hidden lg:block" aria-hidden="true">
+        <div class="hero-visual aspect-square w-full rounded-[2rem]"></div>
+        <img
+          src={assetShape("shape_squiggle_purple")}
+          alt=""
+          class="pointer-events-none absolute -bottom-8 -left-8 w-32 opacity-80"
+        />
+      </div>
+    </div>
+  </Container>
+</section>
+
+<style>
+  .hero-mesh {
+    background:
+      radial-gradient(ellipse 60% 50% at 78% 18%, color-mix(in srgb, var(--color-blue) 18%, transparent), transparent 60%),
+      radial-gradient(ellipse 50% 60% at 12% 32%, color-mix(in srgb, var(--color-magenta) 12%, transparent), transparent 55%),
+      radial-gradient(ellipse 70% 55% at 60% 95%, color-mix(in srgb, var(--color-lime) 10%, transparent), transparent 60%);
+  }
+  .hero-visual {
+    background:
+      radial-gradient(circle at 32% 28%, color-mix(in srgb, var(--color-cyan) 85%, white), transparent 55%),
+      radial-gradient(circle at 70% 75%, color-mix(in srgb, var(--color-purple) 75%, transparent), transparent 60%),
+      color-mix(in srgb, var(--color-blue) 88%, black);
+    box-shadow: var(--shadow-floating);
+  }
+</style>
