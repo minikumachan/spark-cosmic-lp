@@ -1,18 +1,75 @@
-// 型チェックは src/** に集中させ、本ファイルは build で検証する（@tailwindcss/vite と
-// Astro の vite 型の既知の不一致を避けるため @ts-check は付けない）。
 import { defineConfig } from 'astro/config';
 import react from '@astrojs/react';
 import sitemap from '@astrojs/sitemap';
 import { FontaineTransform } from 'fontaine';
+import { createHash } from 'node:crypto';
+import { readFile, writeFile, readdir } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 
-// NOTE:
-// - Tailwind v4 は PostCSS 経由（postcss.config.mjs）で適用。
-//   Astro 6 の rolldown-vite と @tailwindcss/vite の非互換を回避するため。
-// - fontaine はフォントのフォールバックにメトリクスを注入し CLS=0 を担保する。
-// - Cloudflare adapter + output:'server' (form endpoint) は P4 で追加する。
+// ビルド後、各 HTML のインライン実行 script の sha256 を集計し、
+// 'unsafe-inline' を排除した厳格 CSP を dist/_headers に自動生成する。
+// （hash 保守を自動化＝スクリプト変更で壊れない。目標: securityheaders.com A+）
+function securityHeaders() {
+  return {
+    name: 'spark-security-headers',
+    hooks: {
+      'astro:build:done': async ({ dir }) => {
+        const distPath = fileURLToPath(dir);
+        const entries = await readdir(distPath, { recursive: true });
+        const htmlFiles = entries.filter((f) => String(f).endsWith('.html'));
+        const hashes = new Set();
+        const scriptRe = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
+
+        for (const rel of htmlFiles) {
+          const html = await readFile(join(distPath, String(rel)), 'utf8');
+          for (const m of html.matchAll(scriptRe)) {
+            const attrs = m[1];
+            const content = m[2];
+            if (/\bsrc=/i.test(attrs)) continue; // 外部script は 'self'
+            if (/application\/ld\+json/i.test(attrs)) continue; // データ(非実行)
+            if (content.trim() === '') continue;
+            const h = createHash('sha256').update(content, 'utf8').digest('base64');
+            hashes.add(`'sha256-${h}'`);
+          }
+        }
+
+        const csp = [
+          "default-src 'self'",
+          "base-uri 'self'",
+          "form-action 'self'",
+          "frame-ancestors 'none'",
+          "object-src 'none'",
+          "img-src 'self' data:",
+          "font-src 'self'",
+          "style-src 'self' 'unsafe-inline'",
+          `script-src 'self' ${[...hashes].join(' ')}`,
+          "connect-src 'self'",
+        ].join('; ');
+
+        const headers = `/*
+  Content-Security-Policy: ${csp}
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=()
+  X-Frame-Options: DENY
+
+/fonts/*
+  Cache-Control: public, max-age=31536000
+
+/_astro/*
+  Cache-Control: public, max-age=31536000, immutable
+`;
+        await writeFile(join(distPath, '_headers'), headers, 'utf8');
+      },
+    },
+  };
+}
+
 export default defineConfig({
   site: 'https://spark.example.com',
-  integrations: [react(), sitemap()],
+  integrations: [react(), sitemap(), securityHeaders()],
   vite: {
     plugins: [
       FontaineTransform.vite({
