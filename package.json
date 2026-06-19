@@ -7,7 +7,9 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "check": "astro check"
+    "check": "astro check",
+    "test:e2e": "playwright test",
+    "lhci": "lhci autorun"
   },
   "dependencies": {
     "@astrojs/react": "^5.0.7",
@@ -18,8 +20,11 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.9",
+    "@axe-core/playwright": "^4.11.3",
     "@fontsource/jetbrains-mono": "^5.2.8",
     "@fontsource/zen-kaku-gothic-new": "^5.2.7",
+    "@lhci/cli": "^0.15.1",
+    "@playwright/test": "^1.61.0",
     "@tailwindcss/postcss": "^4.3.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",

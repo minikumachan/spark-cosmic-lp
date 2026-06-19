@@ -1,0 +1,17 @@
+{
+  "//": "P0段階のゲート。a11yは厳格(=100)。CLS/perfはP5のフォントサブセット最適化後に strict(CLS=0 / perf>=0.95) へ引き上げる。",
+  "ci": {
+    "collect": {
+      "staticDistDir": "./dist",
+      "numberOfRuns": 1
+    },
+    "assert": {
+      "assertions": {
+        "categories:accessibility": ["error", { "minScore": 1 }],
+        "categories:seo": ["error", { "minScore": 0.9 }],
+        "categories:performance": ["warn", { "minScore": 0.95 }],
+        "cumulative-layout-shift": ["error", { "maxNumericValue": 0.02 }]
+      }
+    }
+  }
+}

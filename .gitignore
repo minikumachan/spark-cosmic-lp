@@ -5,3 +5,9 @@ dist/
 *.log
 # 素材は展開済みフォルダを正本とし、配布zipは追跡しない
 lp_ec_vibe_design_assets_pack.zip
+
+# test/QA artifacts
+tests/__screenshots__/
+test-results/
+playwright-report/
+.lighthouseci/
