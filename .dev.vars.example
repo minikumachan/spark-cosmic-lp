@@ -1,0 +1,15 @@
+# ローカルで Pages Functions を試す用のサンプル。
+#   cp .dev.vars.example .dev.vars  して値を入れ、`npx wrangler pages dev dist` で検証。
+# 本番のシークレットはここではなく `wrangler pages secret put ...` で投入する。
+# .dev.vars は .gitignore 済み（コミット禁止）。
+
+# 受信メール転送（Resend）。未設定ならフォームは成功扱いで返す（メールは飛ばない）。
+RESEND_API_KEY=
+CONTACT_TO=owner@example.com
+# 任意（検証済み独自ドメイン送信元。未設定は onboarding@resend.dev）
+# CONTACT_FROM=spark <hello@yourdomain.com>
+
+# 任意（bot対策の Cloudflare Turnstile）。
+# ※ 現状フォーム側ウィジェットが未配線のため、設定するとフォームが必ず弾かれる。
+#    有効化したい場合は先にウィジェット配線が必要（DEPLOY_CLOUDFLARE.md 参照）。
+# TURNSTILE_SECRET=

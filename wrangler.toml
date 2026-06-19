@@ -1,0 +1,24 @@
+# Cloudflare Pages（直接アップロード方式。git連携はremote未設定のため不使用）。
+# 静的サイト本体＝dist/ ・ サーバ処理＝functions/（onRequestPost を自動バンドル）。
+# CSP等のヘッダは dist/_headers（astro build の securityHeaders インテグが自動生成）が適用される。
+name = "spark-lp"
+compatibility_date = "2026-06-20"
+pages_build_output_dir = "./dist"
+
+# contact.ts は fetch / URLSearchParams / Request・Response / JSON のみ使用（Web標準）。
+# Node API は使わないため nodejs_compat は不要。
+
+# ── レート制限用 KV（任意・推奨） ───────────────────────────────
+# 1) 名前空間を作成:  npx wrangler kv namespace create RATE_LIMIT
+#    （出力された id を下にコピーしてコメントを外す）
+# 2) これで env.RATE_LIMIT が Function に bind され「1分5回/IP」が有効化される。
+#    未設定でも honeypot＋time-trap で最低限のbot対策は機能する。
+# [[kv_namespaces]]
+# binding = "RATE_LIMIT"
+# id = "<KV_NAMESPACE_ID>"
+
+# ── シークレット（wrangler.toml には書かない。ダッシュボード or 下記コマンドで投入） ──
+#   npx wrangler pages secret put RESEND_API_KEY   --project-name spark-lp
+#   npx wrangler pages secret put CONTACT_TO       --project-name spark-lp
+#   （任意）CONTACT_FROM / TURNSTILE_SECRET
+#   ※ TURNSTILE_SECRET はフォーム側ウィジェット未配線のため現状は設定しないこと（DEPLOY手順書参照）。

@@ -14,3 +14,7 @@ playwright-report/
 
 # フォントサブセットの中間生成物（subset_fonts.py が毎回再生成）
 scripts/_charset.txt
+
+# Cloudflare ローカル秘匿変数（.example のみ追跡）
+.dev.vars
+.wrangler/
