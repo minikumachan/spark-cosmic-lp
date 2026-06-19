@@ -19,6 +19,19 @@ test("テーマトグルが切替わり永続する", async ({ page }) => {
   expect(persisted).toBe(after);
 });
 
+test("コンタクトフォーム: 空送信でアクセシブルなエラー表示", async ({ page }) => {
+  await page.goto("/");
+  await page.locator("#contact").scrollIntoViewIfNeeded();
+  const submit = page.locator("#contact form button[type=submit]");
+  await submit.waitFor();
+  await submit.click();
+
+  await expect(page.locator("#name-error")).toBeVisible();
+  await expect(page.locator("#email-error")).toBeVisible();
+  await expect(page.locator("#message-error")).toBeVisible();
+  await expect(page.locator("#name")).toHaveAttribute("aria-invalid", "true");
+});
+
 test("axe a11y 違反0（light/dark 両テーマ）", async ({ page }) => {
   for (const theme of ["light", "dark"] as const) {
     // FOUC スクリプトにペイント前へテーマを確定させる。

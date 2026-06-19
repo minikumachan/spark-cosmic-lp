@@ -1,11 +1,8 @@
 ---
 import Container from "../ui/Container.astro";
+import ContactForm from "./ContactForm.tsx";
 import { site } from "../../lib/content";
 const { contact } = site;
-const fields = [
-  { id: "name", type: "text", ...contact.fields.name },
-  { id: "email", type: "email", ...contact.fields.email },
-] as const;
 ---
 
 <section id="contact" class="relative scroll-mt-24 overflow-hidden py-24 sm:py-32">
@@ -22,42 +19,9 @@ const fields = [
         <p class="mt-6 font-mono text-sm text-muted">{contact.note}</p>
       </div>
 
-      {/* P4 で react-hook-form + zod + Turnstile + サーバendpoint を実装 */}
-      <form class="reveal rounded-card bg-surface p-8 shadow-card ring-1 ring-text/5">
-        <div class="space-y-5">
-          {
-            fields.map((f) => (
-              <div>
-                <label for={f.id} class="font-body text-sm font-medium">{f.label}</label>
-                <input
-                  id={f.id}
-                  name={f.id}
-                  type={f.type}
-                  placeholder={f.placeholder}
-                  class="mt-2 w-full rounded-2xl bg-bg px-4 py-3 font-body text-text ring-1 ring-text/10 transition-shadow placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-blue"
-                />
-              </div>
-            ))
-          }
-          <div>
-            <label for="message" class="font-body text-sm font-medium">{contact.fields.message.label}</label>
-            <textarea
-              id="message"
-              name="message"
-              rows="4"
-              placeholder={contact.fields.message.placeholder}
-              class="mt-2 w-full rounded-2xl bg-bg px-4 py-3 font-body text-text ring-1 ring-text/10 transition-shadow placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-blue"
-            ></textarea>
-          </div>
-        </div>
-
-        <button
-          type="submit"
-          class="mt-6 w-full rounded-button bg-blue px-6 py-3.5 font-body font-medium text-white shadow-floating transition-transform hover:-translate-y-0.5 motion-reduce:transform-none"
-        >
-          {contact.submit}
-        </button>
-      </form>
+      <div class="reveal">
+        <ContactForm client:visible />
+      </div>
     </div>
   </Container>
 </section>
