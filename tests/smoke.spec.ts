@@ -30,6 +30,8 @@ test("axe a11y 違反0（light/dark 両テーマ）", async ({ page }) => {
         /* noop */
       }
     }, theme);
+    // モーションを実際に無効化して確定状態で測る（scroll-driven/遷移の途中色を避ける）
+    await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto("/");
     await page.evaluate(() => document.fonts.ready);
 

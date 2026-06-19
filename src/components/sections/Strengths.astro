@@ -14,7 +14,7 @@ const copy = site.sections.strengths;
     <ul class="grid grid-cols-1 gap-px overflow-hidden rounded-card bg-text/10 @md:grid-cols-2 @4xl:grid-cols-4">
       {
         strengths.map((s) => (
-          <li class="flex flex-col bg-bg p-8">
+          <li class="reveal flex flex-col bg-bg p-8">
             <span
               class:list={[
                 "grid h-12 w-12 place-items-center rounded-2xl",
@@ -24,8 +24,7 @@ const copy = site.sections.strengths;
               <Icon name={s.data.icon} size={28} />
             </span>
             <p class="mt-6 font-display text-5xl font-bold tracking-tight">
-              {s.data.metric}
-              <span class="align-top text-2xl text-muted">{s.data.suffix}</span>
+              <span data-count={s.data.metric}>{s.data.metric}</span><span class="align-top text-2xl text-muted">{s.data.suffix}</span>
             </p>
             <h3 class="mt-2 font-display text-lg font-bold">{s.data.title}</h3>
             <p class="mt-2 font-body text-sm text-muted">{s.data.desc}</p>
@@ -35,3 +34,35 @@ const copy = site.sections.strengths;
     </ul>
   </div>
 </Section>
+
+<script>
+  // 数値カウントアップ（画面到達時に1回）。reduced-motion時は最終値のまま。
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const els = document.querySelectorAll<HTMLElement>("[data-count]");
+  if (!reduce && "IntersectionObserver" in window) {
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const el = entry.target as HTMLElement;
+          const to = Number(el.dataset.count ?? "0");
+          const duration = 1200;
+          let startTime = 0;
+          const tick = (now: number) => {
+            if (!startTime) startTime = now;
+            const p = Math.min(1, (now - startTime) / duration);
+            el.textContent = String(Math.round(to * (1 - Math.pow(1 - p, 3))));
+            if (p < 1) requestAnimationFrame(tick);
+          };
+          requestAnimationFrame(tick);
+          io.unobserve(el);
+        }
+      },
+      { threshold: 0.4 },
+    );
+    els.forEach((el) => {
+      el.textContent = "0";
+      io.observe(el);
+    });
+  }
+</script>

@@ -1,0 +1,61 @@
+/* ===== Motion =====
+   スクロール連動リビール / パララックス / ロードイン。
+   すべて prefers-reduced-motion でガードし、scroll-driven は @supports でガード。
+   非対応・低モーション時はコンテンツを即表示（隠れない）。 */
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes reveal-up {
+    from {
+      opacity: 0;
+      transform: translateY(2rem);
+      filter: blur(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+      filter: blur(0);
+    }
+  }
+
+  @keyframes parallax-y {
+    from {
+      transform: translateY(-4%);
+    }
+    to {
+      transform: translateY(7%);
+    }
+  }
+
+  /* Hero ロードイン（上部＝スクロールを待たず即スタッガー） */
+  .load-in > * {
+    animation: reveal-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .load-in > *:nth-child(1) {
+    animation-delay: 0.05s;
+  }
+  .load-in > *:nth-child(2) {
+    animation-delay: 0.13s;
+  }
+  .load-in > *:nth-child(3) {
+    animation-delay: 0.21s;
+  }
+  .load-in > *:nth-child(4) {
+    animation-delay: 0.29s;
+  }
+  .load-in > *:nth-child(5) {
+    animation-delay: 0.37s;
+  }
+
+  /* スクロール連動（対応ブラウザのみ。非対応は通常表示のまま） */
+  @supports (animation-timeline: view()) {
+    .reveal {
+      animation: reveal-up linear both;
+      animation-timeline: view();
+      animation-range: entry 4% cover 24%;
+    }
+    .parallax-slow {
+      animation: parallax-y linear both;
+      animation-timeline: scroll(root);
+    }
+  }
+}
