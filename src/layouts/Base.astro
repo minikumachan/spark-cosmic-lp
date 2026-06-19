@@ -2,6 +2,7 @@
 import "../styles/fonts.css";
 import "../styles/theme.css";
 import { buildMeta, ORGANIZATION_JSONLD, type MetaInput } from "../lib/seo";
+import ThemeToggle from "../components/ui/ThemeToggle.astro";
 
 type Props = MetaInput;
 const { title, description, image, canonical } = Astro.props;
@@ -51,6 +52,7 @@ const meta = buildMeta({ title, description, image, canonical });
     >
       本文へスキップ
     </a>
+    <ThemeToggle />
     <slot />
   </body>
 </html>

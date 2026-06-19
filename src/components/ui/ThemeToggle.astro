@@ -1,0 +1,32 @@
+---
+// テーマ切替: React 不要の軽量バニラ実装。
+// 1トグルのために React ランタイムを積まない（baseline JS を最小化）。
+// 処理済み <script> は /_astro に小さくバンドルされ CSP 'self' で許可できる。
+---
+
+<button
+  type="button"
+  id="theme-toggle"
+  aria-label="テーマを切り替え"
+  class="fixed right-4 top-4 z-50 grid h-11 w-11 place-items-center rounded-button bg-surface text-text shadow-card transition-colors hover:bg-light-blue motion-reduce:transition-none"
+>
+  <span data-theme-icon aria-hidden="true"></span>
+</button>
+
+<script>
+  const btn = document.getElementById("theme-toggle");
+  const icon = btn?.querySelector("[data-theme-icon]");
+  const sync = () => {
+    const dark = document.documentElement.dataset.theme === "dark";
+    if (icon) icon.textContent = dark ? "☀" : "☾";
+    btn?.setAttribute("aria-pressed", String(dark));
+  };
+  sync();
+  btn?.addEventListener("click", () => {
+    const next =
+      document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+    document.documentElement.dataset.theme = next;
+    localStorage.setItem("theme", next);
+    sync();
+  });
+</script>
