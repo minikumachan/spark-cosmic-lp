@@ -1,0 +1,37 @@
+---
+import { getCollection } from "astro:content";
+import Section from "./Section.astro";
+import Icon from "../ui/Icon.astro";
+import { site } from "../../lib/content";
+import { accentSoftBg, type Accent } from "../../lib/accent";
+
+const strengths = await getCollection("strengths");
+const copy = site.sections.strengths;
+---
+
+<Section id="strengths" eyebrow={copy.eyebrow} title={copy.title} lead={copy.lead}>
+  <div class="@container">
+    <ul class="grid grid-cols-1 gap-px overflow-hidden rounded-card bg-text/10 @md:grid-cols-2 @4xl:grid-cols-4">
+      {
+        strengths.map((s) => (
+          <li class="flex flex-col bg-bg p-8">
+            <span
+              class:list={[
+                "grid h-12 w-12 place-items-center rounded-2xl",
+                accentSoftBg[s.data.accent as Accent],
+              ]}
+            >
+              <Icon name={s.data.icon} size={28} />
+            </span>
+            <p class="mt-6 font-display text-5xl font-bold tracking-tight">
+              {s.data.metric}
+              <span class="align-top text-2xl text-muted">{s.data.suffix}</span>
+            </p>
+            <h3 class="mt-2 font-display text-lg font-bold">{s.data.title}</h3>
+            <p class="mt-2 font-body text-sm text-muted">{s.data.desc}</p>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</Section>

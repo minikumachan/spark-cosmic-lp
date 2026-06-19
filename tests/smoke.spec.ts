@@ -21,10 +21,17 @@ test("テーマトグルが切替わり永続する", async ({ page }) => {
 
 test("axe a11y 違反0（light/dark 両テーマ）", async ({ page }) => {
   for (const theme of ["light", "dark"] as const) {
-    await page.goto("/");
-    await page.evaluate((t) => {
-      document.documentElement.dataset.theme = t;
+    // FOUC スクリプトにペイント前へテーマを確定させる。
+    // （JSで data-theme を切替えると transition-colors の遷移途中色を axe が拾い誤検知するため）
+    await page.addInitScript((t) => {
+      try {
+        localStorage.setItem("theme", t);
+      } catch {
+        /* noop */
+      }
     }, theme);
+    await page.goto("/");
+    await page.evaluate(() => document.fonts.ready);
 
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"])

@@ -1,0 +1,57 @@
+---
+import { getCollection } from "astro:content";
+import Section from "./Section.astro";
+import { site } from "../../lib/content";
+import { assetShape } from "../../lib/assets";
+
+const works = await getCollection("works");
+const copy = site.sections.works;
+---
+
+<Section id="works" eyebrow={copy.eyebrow} title={copy.title} lead={copy.lead}>
+  <div class="@container">
+    <ul class="grid grid-cols-1 gap-x-6 gap-y-10 @md:grid-cols-2 @4xl:grid-cols-3">
+      {
+        works.map((w) => (
+          <li class="group">
+            <div
+              role="img"
+              aria-label={w.data.alt}
+              class="work-visual relative aspect-[4/3] overflow-hidden rounded-card shadow-card"
+              style={`--c: var(--color-${w.data.accent});`}
+            >
+              <img
+                src={assetShape(w.data.shape)}
+                alt=""
+                aria-hidden="true"
+                loading="lazy"
+                decoding="async"
+                class="absolute bottom-5 right-5 w-24 opacity-90 transition-transform duration-500 ease-out group-hover:-translate-y-1 group-hover:scale-110 motion-reduce:transform-none"
+              />
+            </div>
+            <p class="mt-4 font-mono text-xs uppercase tracking-widest text-muted">
+              {w.data.category}
+            </p>
+            <h3 class="mt-1 font-display text-xl font-bold">{w.data.title}</h3>
+            <ul class="mt-3 flex flex-wrap gap-2">
+              {w.data.tags.map((t) => (
+                <li class="rounded-button bg-surface px-3 py-1 font-mono text-xs text-muted ring-1 ring-text/5">
+                  {t}
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</Section>
+
+<style>
+  .work-visual {
+    background:
+      radial-gradient(circle at 30% 25%, color-mix(in srgb, var(--c) 78%, white), transparent 55%),
+      radial-gradient(circle at 78% 80%, color-mix(in srgb, var(--c) 92%, black), transparent 60%),
+      color-mix(in srgb, var(--c) 70%, var(--surface));
+  }
+</style>
