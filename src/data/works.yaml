@@ -1,0 +1,47 @@
+- id: ec-rebrand
+  title: 次世代ECのブランド刷新
+  category: Branding · EC
+  shape: shape_blob_gradient_blue
+  accent: blue
+  alt: 青系のグラデーションブロブで表現したEC刷新プロジェクトのビジュアル
+  tags: [Branding, UI/UX]
+
+- id: saas-dashboard
+  title: SaaS管理画面の体験設計
+  category: UI/UX · SaaS
+  shape: shape_wave_cyan
+  accent: cyan
+  alt: シアンの波形で表現したSaaSダッシュボードの体験設計ビジュアル
+  tags: [UI/UX, Web]
+
+- id: d2c-launch
+  title: D2CコスメのローンチLP
+  category: Web · D2C
+  shape: shape_blob_gradient_coral
+  accent: coral
+  alt: コーラル系ブロブで表現したD2CコスメのローンチLPビジュアル
+  tags: [Web, Branding]
+
+- id: fintech-app
+  title: フィンテックアプリの刷新
+  category: UI/UX · Fintech
+  shape: shape_squiggle_purple
+  accent: purple
+  alt: 紫の曲線で表現したフィンテックアプリ刷新のビジュアル
+  tags: [UI/UX]
+
+- id: corporate-site
+  title: コーポレートサイト構築
+  category: Web · Corporate
+  shape: shape_soft_square_layer
+  accent: green
+  alt: グリーンのソフトな四角レイヤーで表現したコーポレートサイトのビジュアル
+  tags: [Web]
+
+- id: event-world
+  title: イベントの世界観設計
+  category: Creative · Event
+  shape: shape_pill_lime
+  accent: lime
+  alt: ライムのピル形状で表現したイベント世界観設計のビジュアル
+  tags: [Creative Direction]

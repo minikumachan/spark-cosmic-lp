@@ -1,0 +1,37 @@
+- id: light
+  name: ライト
+  en: Light
+  price: ¥300,000
+  period: 〜 / プロジェクト
+  featured: false
+  features:
+    - LP 1ページ制作
+    - デザイン2案ご提案
+    - フルレスポンシブ対応
+    - 公開サポート
+
+- id: standard
+  name: スタンダード
+  en: Standard
+  price: ¥800,000
+  period: 〜 / プロジェクト
+  featured: true
+  features:
+    - 複数ページのサイト制作
+    - ブランド設計・トンマナ策定
+    - UI/UXデザイン
+    - 実装・公開・初期SEO
+    - 公開後1ヶ月の保守
+
+- id: growth
+  name: グロース
+  en: Growth
+  price: 要相談
+  period: パートナー契約
+  featured: false
+  features:
+    - フルブランディング
+    - 継続的な改善・運用
+    - A/Bテストと最適化
+    - 専任ディレクター
+    - 優先サポート

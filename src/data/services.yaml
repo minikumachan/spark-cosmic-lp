@@ -1,0 +1,27 @@
+- id: branding
+  title: ブランディング
+  en: Branding
+  icon: icon_service_branding
+  desc: 市場で記憶されるブランドの核を、戦略とビジュアルの両輪で設計。らしさを言語化し、揺るがない軸をつくります。
+  accent: blue
+
+- id: uiux
+  title: UI/UXデザイン
+  en: UI / UX Design
+  icon: icon_service_uiux_phone
+  desc: ユーザーの行動から逆算し、迷わず心地よい体験を設計。美しさと使いやすさを両立させます。
+  accent: magenta
+
+- id: web
+  title: Web開発
+  en: Web Development
+  icon: icon_service_web_monitor
+  desc: 高速・堅牢・拡張可能。最新技術で「速くて美しい」を実装し、公開後の成長まで支えます。
+  accent: purple
+
+- id: direction
+  title: クリエイティブディレクション
+  en: Creative Direction
+  icon: icon_service_direction_pen
+  desc: すべての接点で世界観の一貫性を保ち、ブランドを語る。点を線に、線を体験に変えます。
+  accent: coral
