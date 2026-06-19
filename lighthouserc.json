@@ -1,16 +1,19 @@
 {
-  "//": "P0段階のゲート。a11yは厳格(=100)。CLS/perfはP5のフォントサブセット最適化後に strict(CLS=0 / perf>=0.95) へ引き上げる。",
+  "//": "P5でフォントサブセット(-92%)後の実測値に合わせて厳格化。median-of-3。実測: perf99 / a11y100 / bp100 / seo100 / CLS0 / TBT0ms / LCP2.2s。",
   "ci": {
     "collect": {
       "staticDistDir": "./dist",
-      "numberOfRuns": 1
+      "numberOfRuns": 3
     },
     "assert": {
       "assertions": {
         "categories:accessibility": ["error", { "minScore": 1 }],
-        "categories:seo": ["error", { "minScore": 0.9 }],
-        "categories:performance": ["warn", { "minScore": 0.95 }],
-        "cumulative-layout-shift": ["error", { "maxNumericValue": 0.02 }]
+        "categories:seo": ["error", { "minScore": 1 }],
+        "categories:performance": ["error", { "minScore": 0.95 }],
+        "categories:best-practices": ["warn", { "minScore": 1 }],
+        "cumulative-layout-shift": ["error", { "maxNumericValue": 0.005 }],
+        "total-blocking-time": ["warn", { "maxNumericValue": 200 }],
+        "largest-contentful-paint": ["warn", { "maxNumericValue": 2500 }]
       }
     }
   }

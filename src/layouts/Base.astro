@@ -29,9 +29,11 @@ const meta = buildMeta({ title, description, image, canonical });
     <meta property="og:url" content={meta.canonical} />
     <meta name="twitter:card" content="summary_large_image" />
 
-    <!-- LCP候補（Hero見出し=Clash Display）のみ preload。巨大なJP本文フォントは preload しない -->
+    <!-- above-the-fold で実際に使うフォントのみ preload（各サブセット済 ~75KB）。
+         Hero h1 は日本語なので LCP フォントは ZenKaku-700。Latin見出し/数値が Clash-700。 -->
+    <link rel="preload" href="/fonts/ZenKakuGothicNew-700.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/ZenKakuGothicNew-400.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/ClashDisplay-700.woff2" as="font" type="font/woff2" crossorigin />
-    <link rel="preload" href="/fonts/ClashDisplay-200.woff2" as="font" type="font/woff2" crossorigin />
 
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="sitemap" href="/sitemap-index.xml" />
