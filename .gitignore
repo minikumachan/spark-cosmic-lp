@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.astro/
+.DS_Store
+*.log
+# 素材は展開済みフォルダを正本とし、配布zipは追跡しない
+lp_ec_vibe_design_assets_pack.zip

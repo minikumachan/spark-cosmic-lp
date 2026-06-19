@@ -1,0 +1,205 @@
+[
+  {
+    "category": "icons",
+    "name": "icon_cta_chat",
+    "png_60": "assets/icons/png_60/icon_cta_chat.png",
+    "png_240": "assets/icons/png_240_retina/icon_cta_chat@4x.png",
+    "svg": "assets/icons/svg/icon_cta_chat.svg"
+  },
+  {
+    "category": "icons",
+    "name": "icon_cta_document",
+    "png_60": "assets/icons/png_60/icon_cta_document.png",
+    "png_240": "assets/icons/png_240_retina/icon_cta_document@4x.png",
+    "svg": "assets/icons/svg/icon_cta_document.svg"
+  },
+  {
+    "category": "icons",
+    "name": "icon_ec_cart",
+    "png_60": "assets/icons/png_60/icon_ec_cart.png",
+    "png_240": "assets/icons/png_240_retina/icon_ec_cart@4x.png",
+    "svg": "assets/icons/svg/icon_ec_cart.svg"
+  },
+  {
+    "category": "icons",
+    "name": "icon_ec_heart",
+    "png_60": "assets/icons/png_60/icon_ec_heart.png",
+    "png_240": "assets/icons/png_240_retina/icon_ec_heart@4x.png",
+    "svg": "assets/icons/svg/icon_ec_heart.svg"
+  },
+  {
+    "category": "icons",
+    "name": "icon_ec_search",
+    "png_60": "assets/icons/png_60/icon_ec_search.png",
+    "png_240": "assets/icons/png_240_retina/icon_ec_search@4x.png",
+    "svg": "assets/icons/svg/icon_ec_search.svg"
+  },
+  {
+    "category": "icons",
+    "name": "icon_logo_spark",
+    "png_60": "assets/icons/png_60/icon_logo_spark.png",
+    "png_240": "assets/icons/png_240_retina/icon_logo_spark@4x.png",
+    "svg": "assets/icons/svg/icon_logo_spark.svg"
+  },
+  {
+    "category": "icons",
+    "name": "icon_service_branding",
+    "png_60": "assets/icons/png_60/icon_service_branding.png",
+    "png_240": "assets/icons/png_240_retina/icon_service_branding@4x.png",
+    "svg": "assets/icons/svg/icon_service_branding.svg"
+  },
+  {
+    "category": "icons",
+    "name": "icon_service_direction_pen",
+    "png_60": "assets/icons/png_60/icon_service_direction_pen.png",
+    "png_240": "assets/icons/png_240_retina/icon_service_direction_pen@4x.png",
+    "svg": "assets/icons/svg/icon_service_direction_pen.svg"
+  },
+  {
+    "category": "icons",
+    "name": "icon_service_uiux_phone",
+    "png_60": "assets/icons/png_60/icon_service_uiux_phone.png",
+    "png_240": "assets/icons/png_240_retina/icon_service_uiux_phone@4x.png",
+    "svg": "assets/icons/svg/icon_service_uiux_phone.svg"
+  },
+  {
+    "category": "icons",
+    "name": "icon_service_web_monitor",
+    "png_60": "assets/icons/png_60/icon_service_web_monitor.png",
+    "png_240": "assets/icons/png_240_retina/icon_service_web_monitor@4x.png",
+    "svg": "assets/icons/svg/icon_service_web_monitor.svg"
+  },
+  {
+    "category": "icons",
+    "name": "icon_strength_brand_overlap",
+    "png_60": "assets/icons/png_60/icon_strength_brand_overlap.png",
+    "png_240": "assets/icons/png_240_retina/icon_strength_brand_overlap@4x.png",
+    "svg": "assets/icons/svg/icon_strength_brand_overlap.svg"
+  },
+  {
+    "category": "icons",
+    "name": "icon_strength_speed_rocket",
+    "png_60": "assets/icons/png_60/icon_strength_speed_rocket.png",
+    "png_240": "assets/icons/png_240_retina/icon_strength_speed_rocket@4x.png",
+    "svg": "assets/icons/svg/icon_strength_speed_rocket.svg"
+  },
+  {
+    "category": "icons",
+    "name": "icon_strength_strategy_compass",
+    "png_60": "assets/icons/png_60/icon_strength_strategy_compass.png",
+    "png_240": "assets/icons/png_240_retina/icon_strength_strategy_compass@4x.png",
+    "svg": "assets/icons/svg/icon_strength_strategy_compass.svg"
+  },
+  {
+    "category": "icons",
+    "name": "icon_strength_user",
+    "png_60": "assets/icons/png_60/icon_strength_user.png",
+    "png_240": "assets/icons/png_240_retina/icon_strength_user@4x.png",
+    "svg": "assets/icons/svg/icon_strength_user.svg"
+  },
+  {
+    "category": "ui",
+    "name": "icon_ui_arrow_down",
+    "png_60": "assets/ui/png_60/icon_ui_arrow_down.png",
+    "png_240": "assets/ui/png_240_retina/icon_ui_arrow_down@4x.png",
+    "svg": "assets/ui/svg/icon_ui_arrow_down.svg"
+  },
+  {
+    "category": "ui",
+    "name": "icon_ui_arrow_right",
+    "png_60": "assets/ui/png_60/icon_ui_arrow_right.png",
+    "png_240": "assets/ui/png_240_retina/icon_ui_arrow_right@4x.png",
+    "svg": "assets/ui/svg/icon_ui_arrow_right.svg"
+  },
+  {
+    "category": "ui",
+    "name": "icon_ui_check",
+    "png_60": "assets/ui/png_60/icon_ui_check.png",
+    "png_240": "assets/ui/png_240_retina/icon_ui_check@4x.png",
+    "svg": "assets/ui/svg/icon_ui_check.svg"
+  },
+  {
+    "category": "ui",
+    "name": "icon_ui_cursor",
+    "png_60": "assets/ui/png_60/icon_ui_cursor.png",
+    "png_240": "assets/ui/png_240_retina/icon_ui_cursor@4x.png",
+    "svg": "assets/ui/svg/icon_ui_cursor.svg"
+  },
+  {
+    "category": "ui",
+    "name": "icon_ui_graph",
+    "png_60": "assets/ui/png_60/icon_ui_graph.png",
+    "png_240": "assets/ui/png_240_retina/icon_ui_graph@4x.png",
+    "svg": "assets/ui/svg/icon_ui_graph.svg"
+  },
+  {
+    "category": "ui",
+    "name": "icon_ui_plus",
+    "png_60": "assets/ui/png_60/icon_ui_plus.png",
+    "png_240": "assets/ui/png_240_retina/icon_ui_plus@4x.png",
+    "svg": "assets/ui/svg/icon_ui_plus.svg"
+  },
+  {
+    "category": "shapes",
+    "name": "shape_blob_gradient_blue",
+    "png_60": "assets/shapes/png_60/shape_blob_gradient_blue.png",
+    "png_240": "assets/shapes/png_240_retina/shape_blob_gradient_blue@4x.png",
+    "svg": "assets/shapes/svg/shape_blob_gradient_blue.svg"
+  },
+  {
+    "category": "shapes",
+    "name": "shape_blob_gradient_coral",
+    "png_60": "assets/shapes/png_60/shape_blob_gradient_coral.png",
+    "png_240": "assets/shapes/png_240_retina/shape_blob_gradient_coral@4x.png",
+    "svg": "assets/shapes/svg/shape_blob_gradient_coral.svg"
+  },
+  {
+    "category": "shapes",
+    "name": "shape_circle_dots_arrow",
+    "png_60": "assets/shapes/png_60/shape_circle_dots_arrow.png",
+    "png_240": "assets/shapes/png_240_retina/shape_circle_dots_arrow@4x.png",
+    "svg": "assets/shapes/svg/shape_circle_dots_arrow.svg"
+  },
+  {
+    "category": "shapes",
+    "name": "shape_headline_highlight",
+    "png_60": "assets/shapes/png_60/shape_headline_highlight.png",
+    "png_240": "assets/shapes/png_240_retina/shape_headline_highlight@4x.png",
+    "svg": "assets/shapes/svg/shape_headline_highlight.svg"
+  },
+  {
+    "category": "shapes",
+    "name": "shape_image_mask_blob",
+    "png_60": "assets/shapes/png_60/shape_image_mask_blob.png",
+    "png_240": "assets/shapes/png_240_retina/shape_image_mask_blob@4x.png",
+    "svg": "assets/shapes/svg/shape_image_mask_blob.svg"
+  },
+  {
+    "category": "shapes",
+    "name": "shape_pill_lime",
+    "png_60": "assets/shapes/png_60/shape_pill_lime.png",
+    "png_240": "assets/shapes/png_240_retina/shape_pill_lime@4x.png",
+    "svg": "assets/shapes/svg/shape_pill_lime.svg"
+  },
+  {
+    "category": "shapes",
+    "name": "shape_soft_square_layer",
+    "png_60": "assets/shapes/png_60/shape_soft_square_layer.png",
+    "png_240": "assets/shapes/png_240_retina/shape_soft_square_layer@4x.png",
+    "svg": "assets/shapes/svg/shape_soft_square_layer.svg"
+  },
+  {
+    "category": "shapes",
+    "name": "shape_squiggle_purple",
+    "png_60": "assets/shapes/png_60/shape_squiggle_purple.png",
+    "png_240": "assets/shapes/png_240_retina/shape_squiggle_purple@4x.png",
+    "svg": "assets/shapes/svg/shape_squiggle_purple.svg"
+  },
+  {
+    "category": "shapes",
+    "name": "shape_wave_cyan",
+    "png_60": "assets/shapes/png_60/shape_wave_cyan.png",
+    "png_240": "assets/shapes/png_240_retina/shape_wave_cyan@4x.png",
+    "svg": "assets/shapes/svg/shape_wave_cyan.svg"
+  }
+]
