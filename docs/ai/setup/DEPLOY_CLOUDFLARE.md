@@ -16,6 +16,17 @@ git remote 未設定のため git 連携は使わない。設定は `wrangler.to
 
 ---
 
+## 0.5 本番ドメインの設定（公開前に1回）
+`https://spark.example.com` はプレースホルダ。canonical / og:image / sitemap が参照するため、
+本番ドメインに置換すること（2箇所）:
+- `src/lib/seo.ts` の `ORIGIN`
+- `astro.config.mjs` の `site`
+
+置換後に `npm run build`（→ canonical・OG・sitemap が本番URLになる）。
+独自ドメインは Cloudflare Pages の「カスタムドメイン」で割当（DNS は Cloudflare 管理が容易）。
+
+---
+
 ## 1. 【あなたの操作】Cloudflare 認証
 ブラウザが開き OAuth ログインする（このセッションでは `! ` 前置で実行可）:
 

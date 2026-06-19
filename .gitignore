@@ -18,3 +18,6 @@ scripts/_charset.txt
 # Cloudflare ローカル秘匿変数（.example のみ追跡）
 .dev.vars
 .wrangler/
+
+# OG生成の中間ファイル（make_og.mjs が再生成。成果物 public/assets/og/ は追跡）
+scripts/og/
