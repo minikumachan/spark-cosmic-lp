@@ -29,13 +29,13 @@ const { hero } = site;
         <div class="mt-10 flex flex-wrap items-center gap-4">
           <a
             href={hero.primary.href}
-            class="rounded-button bg-blue px-7 py-3.5 font-body font-medium text-white shadow-floating transition-transform hover:-translate-y-0.5 motion-reduce:transform-none"
+            class="rounded-button bg-blue px-7 py-3.5 font-body font-bold text-white shadow-floating transition-transform duration-200 ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] motion-reduce:transform-none"
           >
             {hero.primary.label}
           </a>
           <a
             href={hero.secondary.href}
-            class="rounded-button px-7 py-3.5 font-body font-medium text-text ring-1 ring-text/15 transition-colors hover:bg-surface"
+            class="rounded-button px-7 py-3.5 font-body font-medium text-text ring-1 ring-text/15 transition-[background-color,transform] duration-200 ease-spring hover:-translate-y-0.5 hover:bg-surface active:translate-y-0 active:scale-[0.98] motion-reduce:transform-none"
           >
             {hero.secondary.label}
           </a>

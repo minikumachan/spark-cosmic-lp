@@ -158,7 +158,7 @@ export default function ContactForm() {
       <button
         type="submit"
         disabled={status === "submitting"}
-        className="mt-6 w-full rounded-button bg-blue px-6 py-3.5 font-body font-medium text-white shadow-floating transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70 motion-reduce:transform-none"
+        className="mt-6 w-full rounded-button bg-blue px-6 py-3.5 font-body font-bold text-white shadow-floating transition-transform duration-200 ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 motion-reduce:transform-none"
       >
         {status === "submitting" ? "送信中…" : site.contact.submit}
       </button>

@@ -28,6 +28,14 @@
     background-color: var(--bg);
     color: var(--text);
   }
+
+  /* キーボード操作時のフォーカスリング（両テーマで視認できる accent-ink）。
+     マウス操作には出さず（:focus-visible）、装飾の邪魔をしない。 */
+  :focus-visible {
+    outline: 2px solid var(--accent-ink);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
 }
 
 @theme {
@@ -67,6 +75,7 @@
   --font-body: "Zen Kaku Gothic New", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "Zen Kaku Gothic New", ui-monospace, monospace;
 
-  /* motion easing */
+  /* motion easing（quint=減速リビール / spring=押下の弾性フィードバック） */
   --ease-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
