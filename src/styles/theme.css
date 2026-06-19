@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+/* ───────────────────────────────────────────────────────────
+   semantic color tokens — data-theme で light/dark を切替
+   （tokens/design_tokens.json を正本に転記。ハードコード禁止）
+   ─────────────────────────────────────────────────────────── */
+@layer base {
+  :root {
+    --bg: #ffffff;
+    --surface: #f7f9fc;
+    --text: #0b1230;
+    --muted: #68708a;
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b1230;
+    --surface: #131a3a;
+    --text: #f5f7fb;
+    --muted: #9aa3c0;
+  }
+  html,
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+  }
+}
+
+@theme {
+  /* semantic（var 経由で data-theme 追従） */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+
+  /* accent（両テーマ共通・CTA/アイコン/装飾に限定） */
+  --color-blue: #0757ff;
+  --color-cyan: #4db8ff;
+  --color-magenta: #ff2f8f;
+  --color-coral: #ff5a5f;
+  --color-orange: #ff8a2a;
+  --color-lime: #9be800;
+  --color-green: #5ed000;
+  --color-purple: #854dff;
+  --color-lavender: #c9c4ff;
+  --color-light-blue: #d8e9ff;
+
+  /* radius */
+  --radius-card: 24px;
+  --radius-button: 999px;
+  --radius-image: 32px;
+
+  /* shadow */
+  --shadow-card: 0 18px 45px rgba(11, 18, 48, 0.08);
+  --shadow-floating: 0 24px 70px rgba(7, 87, 255, 0.18);
+
+  /* font families（@font-face は P0-2 で定義） */
+  --font-display: "Clash Display", system-ui, sans-serif;
+  --font-body: "Zen Kaku Gothic New", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* motion easing */
+  --ease-quint: cubic-bezier(0.22, 1, 0.36, 1);
+}

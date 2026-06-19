@@ -1,5 +1,6 @@
 ---
-// P0-0: scaffold スモークページ。後続 P0 タスクで Base レイアウト＋トークン確認用に置換する。
+// P0-1: デザイントークン確認用スペシメン。P0-3 で Base レイアウト＋本実装に置換する。
+import "../styles/theme.css";
 ---
 
 <!doctype html>
@@ -7,11 +8,24 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>spark</title>
+    <title>spark — design tokens</title>
   </head>
   <body>
-    <main>
-      <h1>spark</h1>
+    <main class="grid min-h-dvh place-items-center gap-8 bg-bg p-8 text-text">
+      <h1 class="font-display text-7xl font-extrabold tracking-tight">spark</h1>
+      <p class="font-body text-lg text-muted">ブランドも、体験も、次のステージへ。</p>
+
+      <div class="flex flex-wrap items-center justify-center gap-3">
+        <span class="rounded-button bg-blue px-4 py-2 text-sm text-white">blue</span>
+        <span class="rounded-button bg-magenta px-4 py-2 text-sm text-white">magenta</span>
+        <span class="rounded-button bg-coral px-4 py-2 text-sm text-white">coral</span>
+        <span class="rounded-button bg-purple px-4 py-2 text-sm text-white">purple</span>
+        <span class="rounded-button bg-lime px-4 py-2 text-sm text-text">lime</span>
+      </div>
+
+      <div class="rounded-card bg-surface p-6 font-mono text-sm shadow-card">
+        rounded-card / bg-surface / shadow-card
+      </div>
     </main>
   </body>
 </html>
