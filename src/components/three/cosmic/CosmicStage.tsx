@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { ScreenQuad, useTexture } from "@react-three/drei";
+import { ScreenQuad, useTexture, PerformanceMonitor } from "@react-three/drei";
 import * as THREE from "three";
 
 /* ── 永続コズミック背景：星雲 + 星 + フォトリアル惑星群 + 粒子銀河。
@@ -98,61 +98,142 @@ function Earth() {
   );
 }
 
-// ── generic Planet（軽量：アルベド1枚＋任意リング） ──
+// ── Planet（高画質：バンプ起伏＋大気リム＋任意の環。遅延ロード対応） ──
 function SaturnRing() {
   const tex = useTexture("/assets/planet/saturn_ring.webp");
   const geo = useMemo(() => {
-    const g = new THREE.RingGeometry(1.35, 2.3, 96);
+    const g = new THREE.RingGeometry(1.35, 2.4, 128);
     const pos = g.attributes.position;
     const uv = g.attributes.uv;
     const v = new THREE.Vector3();
     for (let i = 0; i < pos.count; i++) {
       v.fromBufferAttribute(pos, i);
-      const r = (v.length() - 1.35) / (2.3 - 1.35);
+      const r = (v.length() - 1.35) / (2.4 - 1.35);
       uv.setXY(i, r, 0.5);
     }
     return g;
   }, []);
-  useMemo(() => { tex.colorSpace = THREE.SRGBColorSpace; }, [tex]);
+  useMemo(() => {
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = 8;
+  }, [tex]);
   return (
     <mesh geometry={geo} rotation={[-Math.PI / 2 + 0.18, 0, 0]}>
       <meshStandardMaterial map={tex} transparent side={THREE.DoubleSide} roughness={1} depthWrite={false} />
     </mesh>
   );
 }
-function Planet({
-  src, pos, scale, rot = 0.04, tilt = 0.3, ring = false,
-}: { src: string; pos: [number, number, number]; scale: number; rot?: number; tilt?: number; ring?: boolean }) {
+const rimFrag = /* glsl */ `varying vec3 vN; varying vec3 vView; uniform vec3 uColor;
+void main(){ float f=pow(1.0-max(dot(vN,vView),0.0),3.0); gl_FragColor=vec4(uColor*f*0.5,f); }`;
+function AtmosphereRim({ color }: { color: string }) {
+  const u = useMemo(() => ({ uColor: { value: new THREE.Color(color) } }), [color]);
+  return (
+    <mesh scale={1.045}>
+      <sphereGeometry args={[1, 48, 48]} />
+      <shaderMaterial vertexShader={atmoVert} fragmentShader={rimFrag} uniforms={u} side={THREE.BackSide} blending={THREE.AdditiveBlending} transparent depthWrite={false} />
+    </mesh>
+  );
+}
+
+type PlanetDef = {
+  src: string;
+  pos: [number, number, number];
+  scale: number;
+  rot: number;
+  tilt: number;
+  ring?: boolean;
+  rocky?: boolean;
+  atmo?: string;
+};
+const PLANETS: PlanetDef[] = [
+  { src: "/assets/planet/moon.webp", pos: [-2.6, 1.3, -4.2], scale: 0.5, rot: 0.02, tilt: 0.2, rocky: true },
+  { src: "/assets/planet/mars.webp", pos: [-5.6, -1.8, -8.4], scale: 0.9, rot: 0.05, tilt: 0.35, rocky: true, atmo: "#ff7a4d" },
+  { src: "/assets/planet/jupiter.webp", pos: [-8.6, 3.2, -12.8], scale: 2.3, rot: 0.07, tilt: 0.18, atmo: "#e8b87a" },
+  { src: "/assets/planet/saturn.webp", pos: [-10.6, -1.4, -16.8], scale: 1.5, rot: 0.06, tilt: 0.42, ring: true, atmo: "#e6c77a" },
+  { src: "/assets/planet/neptune.webp", pos: [-12.2, 4.6, -19.8], scale: 1.1, rot: 0.05, tilt: 0.25, atmo: "#5b8cff" },
+];
+
+function Planet({ src, pos, scale, rot, tilt, ring, rocky, atmo }: PlanetDef) {
   const ref = useRef<THREE.Mesh>(null);
   const map = useTexture(src);
-  useMemo(() => { map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 8; }, [map]);
-  useFrame((_, d) => { if (ref.current) ref.current.rotation.y += d * rot; });
+  useMemo(() => {
+    map.colorSpace = THREE.SRGBColorSpace;
+    map.anisotropy = 8;
+  }, [map]);
+  useFrame((_, d) => {
+    if (ref.current) ref.current.rotation.y += d * rot;
+  });
   return (
     <group position={pos} rotation={[tilt, 0, 0.04]} scale={scale}>
       <mesh ref={ref}>
-        <sphereGeometry args={[1, 64, 64]} />
-        <meshStandardMaterial map={map} roughness={0.92} metalness={0} />
+        <sphereGeometry args={[1, 96, 96]} />
+        <meshStandardMaterial
+          map={map}
+          bumpMap={rocky ? map : null}
+          bumpScale={rocky ? 0.035 : 0}
+          roughness={rocky ? 0.95 : 0.6}
+          metalness={0}
+        />
       </mesh>
       {ring && <SaturnRing />}
+      {atmo && <AtmosphereRim color={atmo} />}
     </group>
   );
 }
 
-// 各惑星（src・位置・サイズ・自転）
-const PLANETS = [
-  { src: "/assets/planet/moon.webp", pos: [-2.6, 1.3, -4.2], scale: 0.5, rot: 0.02 },
-  { src: "/assets/planet/mars.webp", pos: [-5.6, -1.8, -8.4], scale: 0.9, rot: 0.05 },
-  { src: "/assets/planet/jupiter.webp", pos: [-8.6, 3.2, -12.8], scale: 2.3, rot: 0.07, tilt: 0.18 },
-  { src: "/assets/planet/saturn.webp", pos: [-10.6, -1.4, -16.8], scale: 1.5, rot: 0.06, tilt: 0.42, ring: true },
-  { src: "/assets/planet/neptune.webp", pos: [-12.2, 4.6, -19.8], scale: 1.1, rot: 0.05, tilt: 0.25 },
-] as const;
+// 遅延ロード：接近したセクションの惑星のみマウント（初期は地球＋月だけ＝とてつもなく軽い）
 function Planets() {
+  const [upTo, setUpTo] = useState(1);
+  useEffect(() => {
+    const sels = ["#services", "#works", "#strengths", "#pricing", "#faq"];
+    let centers: number[] = [];
+    const measure = () => {
+      centers = sels.map((s) => {
+        const el = document.querySelector(s) as HTMLElement | null;
+        if (!el) return Number.POSITIVE_INFINITY;
+        const r = el.getBoundingClientRect();
+        return r.top + window.scrollY + r.height / 2;
+      });
+    };
+    const onScroll = () => {
+      const probe = window.scrollY + window.innerHeight;
+      let reached = 0;
+      for (let i = 0; i < centers.length; i++)
+        if (probe > centers[i] - window.innerHeight * 0.9) reached = i + 1;
+      setUpTo((v) => Math.max(v, Math.min(reached + 1, PLANETS.length))); // 次も先読み（ポップイン防止）
+    };
+    measure();
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", measure);
+    const t = window.setTimeout(() => {
+      measure();
+      onScroll();
+    }, 800);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", measure);
+      window.clearTimeout(t);
+    };
+  }, []);
   return (
     <>
-      {PLANETS.map((p) => (
-        <Planet key={p.src} src={p.src} pos={p.pos as [number, number, number]} scale={p.scale} rot={p.rot} tilt={(p as { tilt?: number }).tilt ?? 0.3} ring={(p as { ring?: boolean }).ring ?? false} />
+      {PLANETS.slice(0, upTo).map((p) => (
+        <Suspense key={p.src} fallback={null}>
+          <Planet {...p} />
+        </Suspense>
       ))}
     </>
+  );
+}
+
+// FPS監視でDPRを自動調整（弱GPUで自動的に軽量化＝かくつかない）
+function AdaptiveQuality() {
+  const setDpr = useThree((s) => s.setDpr);
+  return (
+    <PerformanceMonitor
+      onChange={({ factor }) => setDpr((MOBILE ? 0.75 : 0.9) + (MOBILE ? 0.25 : 0.6) * factor)}
+    />
   );
 }
 
@@ -293,17 +374,17 @@ function Rig() {
   });
   return (
     <>
-      <ambientLight intensity={0.08} />
-      <directionalLight position={[5, 2.5, 4]} intensity={2.6} color="#fff6e8" />
+      <AdaptiveQuality />
+      <ambientLight intensity={0.11} />
+      <directionalLight position={[6, 3, 5]} intensity={3.0} color="#fff4e6" />
+      <directionalLight position={[-8, 2, -10]} intensity={0.55} color="#7da6ff" />
       <Nebula />
       <Stars />
       <Galaxy />
       <Suspense fallback={null}>
         <Earth />
       </Suspense>
-      <Suspense fallback={null}>
-        <Planets />
-      </Suspense>
+      <Planets />
     </>
   );
 }
