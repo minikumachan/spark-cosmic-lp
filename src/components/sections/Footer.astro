@@ -5,28 +5,34 @@ import { assetIcon } from "../../lib/assets";
 const { footer, brand } = site;
 ---
 
-<footer class="border-t border-text/10 py-16">
+<footer class="border-t border-hairline">
   <Container>
-    <div class="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+    <!-- 編集的タグライン宣言 -->
+    <div class="reveal py-16 sm:py-24">
+      <p class="max-w-3xl font-display text-headline font-bold tracking-tight text-text">
+        {footer.tagline}
+      </p>
+    </div>
+
+    <div class="grid gap-10 border-t border-hairline py-14 sm:grid-cols-2 lg:grid-cols-4">
       <div class="lg:col-span-2">
-        <a href="#main" class="flex items-center gap-2 font-display text-xl font-bold tracking-tight">
+        <a
+          href="#main"
+          class="inline-flex items-center gap-2 font-display text-2xl font-bold tracking-tight"
+        >
           <img src={assetIcon("icon_logo_spark")} alt="" aria-hidden="true" width="28" height="28" />
           {brand}
         </a>
-        <p class="mt-4 max-w-xs font-body text-muted">{footer.tagline}</p>
       </div>
 
       {
         footer.groups.map((g) => (
           <nav aria-label={g.heading}>
-            <p class="font-mono text-xs uppercase tracking-widest text-muted">{g.heading}</p>
-            <ul class="mt-4 space-y-2.5">
+            <p class="font-mono text-xs uppercase tracking-[0.2em] text-muted">{g.heading}</p>
+            <ul class="mt-5 space-y-3">
               {g.links.map((l) => (
                 <li>
-                  <a
-                    href={l.href}
-                    class="font-body text-sm text-muted transition-colors hover:text-text"
-                  >
+                  <a href={l.href} class="link-underline font-body text-sm text-muted hover:text-text">
                     {l.label}
                   </a>
                 </li>
@@ -37,7 +43,7 @@ const { footer, brand } = site;
       }
     </div>
 
-    <p class="mt-12 border-t border-text/5 pt-8 font-mono text-xs text-muted">
+    <p class="border-t border-hairline py-8 font-mono text-xs uppercase tracking-[0.18em] text-muted">
       {footer.copyright}
     </p>
   </Container>

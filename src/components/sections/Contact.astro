@@ -6,20 +6,23 @@ const { contact } = site;
 ---
 
 <section id="contact" class="relative scroll-mt-24 overflow-hidden py-24 sm:py-32">
-  <div class="contact-mesh pointer-events-none absolute inset-0 -z-10" aria-hidden="true"></div>
+  <div class="contact-bloom pointer-events-none absolute inset-0 -z-10" aria-hidden="true"></div>
 
   <Container>
-    <div class="grid gap-12 lg:grid-cols-2 lg:gap-16">
-      <div>
-        <p class="font-mono text-sm uppercase tracking-[0.25em] text-ink">{contact.eyebrow}</p>
-        <h2 class="mt-3 font-display text-4xl font-bold tracking-tight sm:text-5xl">
-          {contact.title[0]}<br />{contact.title[1]}
+    <div class="grid gap-12 border-t border-hairline pt-12 lg:grid-cols-2 lg:gap-16">
+      <div class="reveal">
+        <div class="flex items-center gap-4">
+          <span class="h-px w-12 bg-text/35"></span>
+          <p class="font-mono text-xs uppercase tracking-[0.4em] text-ink">{contact.eyebrow}</p>
+        </div>
+        <h2 class="mt-6 font-display text-headline font-bold text-text">
+          {contact.title[0]}<br /><span class="text-ink">{contact.title[1]}</span>
         </h2>
-        <p class="mt-5 max-w-md font-body text-lg text-muted">{contact.lead}</p>
-        <p class="mt-6 font-mono text-sm text-muted">{contact.note}</p>
+        <p class="mt-7 max-w-md font-body text-lg leading-[1.85] text-muted">{contact.lead}</p>
+        <p class="mt-8 font-mono text-xs uppercase tracking-[0.18em] text-muted">{contact.note}</p>
       </div>
 
-      <div class="reveal">
+      <div class="reveal lg:pt-2">
         <ContactForm client:visible />
       </div>
     </div>
@@ -27,10 +30,10 @@ const { contact } = site;
 </section>
 
 <style>
-  .contact-mesh {
+  /* editorial 規律: 電撃ブルー主体＋マゼンタを稀な句読点に */
+  .contact-bloom {
     background:
-      radial-gradient(ellipse 50% 60% at 90% 10%, color-mix(in srgb, var(--color-magenta) 14%, transparent), transparent 60%),
-      radial-gradient(ellipse 60% 50% at 5% 90%, color-mix(in srgb, var(--color-blue) 14%, transparent), transparent 60%),
-      radial-gradient(ellipse 40% 50% at 50% 50%, color-mix(in srgb, var(--color-purple) 8%, transparent), transparent 70%);
+      radial-gradient(ellipse 46% 52% at 88% 8%, color-mix(in srgb, var(--color-blue) 13%, transparent), transparent 62%),
+      radial-gradient(ellipse 40% 46% at 6% 94%, color-mix(in srgb, var(--color-magenta) 8%, transparent), transparent 60%);
   }
 </style>
