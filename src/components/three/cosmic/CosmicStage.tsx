@@ -1,6 +1,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { ScreenQuad, useTexture, PerformanceMonitor } from "@react-three/drei";
+import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
 
 /* ── 永続コズミック背景：星雲 + 星 + フォトリアル惑星群 + 粒子銀河。
@@ -324,6 +325,158 @@ function Sun() {
   );
 }
 
+// 柔らかい放射状テクスチャ（星雲雲/銀河/彗星のグローに流用・キャンバス生成）
+let _soft: THREE.Texture | null = null;
+function softTexture(): THREE.Texture {
+  if (_soft) return _soft;
+  const c = document.createElement("canvas");
+  c.width = c.height = 128;
+  const ctx = c.getContext("2d");
+  if (ctx) {
+    const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    g.addColorStop(0, "rgba(255,255,255,1)");
+    g.addColorStop(0.25, "rgba(255,255,255,0.55)");
+    g.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 128, 128);
+  }
+  _soft = new THREE.CanvasTexture(c);
+  return _soft;
+}
+
+// 散光星雲（色とりどりの発光雲）
+function NebulaClouds() {
+  const tex = useMemo(() => softTexture(), []);
+  const data = useMemo(() => {
+    const cols = ["#ff6abf", "#5fd0ff", "#a06bff", "#ff9a5a", "#4d7bff", "#ff5f8a", "#3fd0a8"];
+    const n = MOBILE ? 9 : 18;
+    return Array.from({ length: n }, () => ({
+      pos: [(-0.5 + Math.random()) * 70, (-0.5 + Math.random()) * 34, -8 - Math.random() * 50] as [number, number, number],
+      sx: 10 + Math.random() * 22,
+      sy: 6 + Math.random() * 16,
+      color: cols[(Math.random() * cols.length) | 0],
+      op: 0.05 + Math.random() * 0.13,
+    }));
+  }, []);
+  return (
+    <>
+      {data.map((c, i) => (
+        <sprite key={i} position={c.pos} scale={[c.sx, c.sy, 1]}>
+          <spriteMaterial map={tex} color={c.color} transparent opacity={c.op} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
+        </sprite>
+      ))}
+    </>
+  );
+}
+
+// 遠方の銀河（楕円のグロー＋輝く核）
+function DistantGalaxies() {
+  const tex = useMemo(() => softTexture(), []);
+  const data = useMemo(() => {
+    const cols = ["#ffd9a0", "#bcd0ff", "#ffb0d0", "#a0d8ff"];
+    const n = MOBILE ? 4 : 7;
+    return Array.from({ length: n }, () => ({
+      pos: [(-0.5 + Math.random()) * 84, (-0.5 + Math.random()) * 42, -28 - Math.random() * 45] as [number, number, number],
+      s: 1.6 + Math.random() * 2.8,
+      flat: 0.28 + Math.random() * 0.3,
+      rot: Math.random() * Math.PI,
+      color: cols[(Math.random() * cols.length) | 0],
+    }));
+  }, []);
+  return (
+    <>
+      {data.map((g, i) => (
+        <group key={i} position={g.pos}>
+          <sprite scale={[g.s * 2.6, g.s * 2.6 * g.flat, 1]}>
+            <spriteMaterial map={tex} color={g.color} rotation={g.rot} transparent opacity={0.17} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
+          </sprite>
+          <sprite scale={[g.s * 0.6, g.s * 0.6, 1]}>
+            <spriteMaterial map={tex} color="#ffffff" transparent opacity={0.5} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
+          </sprite>
+        </group>
+      ))}
+    </>
+  );
+}
+
+// 流れ星（周期的に夜空を流れるメテオ）
+function ShootingStars() {
+  const count = MOBILE ? 2 : 4;
+  const refs = useRef<(THREE.Line | null)[]>([]);
+  const meteors = useMemo(
+    () =>
+      Array.from({ length: count }, () => ({
+        next: Math.random() * 5,
+        life: -1,
+        start: new THREE.Vector3(),
+        dir: new THREE.Vector3(),
+      })),
+    [count],
+  );
+  const T = 1.1;
+  useFrame((_, d) => {
+    for (let i = 0; i < count; i++) {
+      const m = meteors[i];
+      const line = refs.current[i];
+      if (!line) continue;
+      if (m.life < 0) {
+        m.next -= d;
+        line.visible = false;
+        if (m.next <= 0) {
+          m.start.set((-0.5 + Math.random()) * 50, 10 + Math.random() * 16, -8 - Math.random() * 34);
+          m.dir.set(-1 - Math.random(), -0.8 - Math.random() * 0.6, -0.15).normalize();
+          m.life = 0;
+        }
+        continue;
+      }
+      m.life += d;
+      if (m.life > T) {
+        m.life = -1;
+        m.next = 2 + Math.random() * 6;
+        line.visible = false;
+        continue;
+      }
+      line.visible = true;
+      const head = m.start.clone().addScaledVector(m.dir, m.life * 34);
+      const tail = head.clone().addScaledVector(m.dir, -3.4);
+      line.geometry.setFromPoints([tail, head]);
+      (line.material as THREE.LineBasicMaterial).opacity = Math.sin((m.life / T) * Math.PI);
+    }
+  });
+  return (
+    <>
+      {meteors.map((_, i) => (
+        <line key={i} ref={(el) => { refs.current[i] = el as unknown as THREE.Line; }}>
+          <bufferGeometry />
+          <lineBasicMaterial color="#dce8ff" transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} fog={false} />
+        </line>
+      ))}
+    </>
+  );
+}
+
+// 彗星（核＋たなびく尾・ゆっくり漂う）
+function Comet() {
+  const tex = useMemo(() => softTexture(), []);
+  const grp = useRef<THREE.Group>(null);
+  useFrame(({ clock }) => {
+    if (grp.current) {
+      const t = clock.elapsedTime * 0.03;
+      grp.current.position.set(8 + Math.sin(t) * 3, 6 + Math.cos(t * 0.8) * 2, -14 + Math.sin(t * 0.5) * 3);
+    }
+  });
+  return (
+    <group ref={grp} position={[8, 6, -14]}>
+      <sprite scale={[0.9, 0.9, 1]}>
+        <spriteMaterial map={tex} color="#cfe6ff" transparent opacity={0.95} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
+      </sprite>
+      <sprite position={[1.6, 0.7, 0]} scale={[5.5, 1.1, 1]}>
+        <spriteMaterial map={tex} color="#9fd0ff" rotation={-0.4} transparent opacity={0.32} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
+      </sprite>
+    </group>
+  );
+}
+
 // ── galaxy（局所空間で差動回転→配置） ──
 const galaxyVert = /* glsl */ `
 uniform float uTime; uniform float uSize;
@@ -444,14 +597,24 @@ function Rig() {
       <directionalLight position={[24, 8, 16]} intensity={3.0} color="#fff4e6" />
       <directionalLight position={[-8, 2, -10]} intensity={0.5} color="#7da6ff" />
       <Nebula />
+      <NebulaClouds />
+      <DistantGalaxies />
       <Stars />
       <Sun />
+      <ShootingStars />
+      <Comet />
       <AsteroidBelt />
       <Galaxy />
       <Suspense fallback={null}>
         <Earth />
       </Suspense>
       <Planets />
+      {!MOBILE && (
+        <EffectComposer>
+          <Bloom luminanceThreshold={0.62} luminanceSmoothing={0.25} intensity={0.7} mipmapBlur radius={0.6} />
+          <Vignette eskil={false} offset={0.28} darkness={0.62} />
+        </EffectComposer>
+      )}
     </>
   );
 }
