@@ -3,7 +3,10 @@
   "ci": {
     "collect": {
       "staticDistDir": "./dist",
-      "numberOfRuns": 3
+      "numberOfRuns": 3,
+      "settings": {
+        "chromeFlags": "--force-prefers-reduced-motion"
+      }
     },
     "assert": {
       "assertions": {

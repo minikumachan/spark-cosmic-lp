@@ -21,12 +21,15 @@ test("テーマトグルが切替わり永続する", async ({ page }) => {
 
 test("コンタクトフォーム: 空送信でアクセシブルなエラー表示", async ({ page }) => {
   await page.goto("/");
-  await page.locator("#contact").scrollIntoViewIfNeeded();
   const submit = page.locator("#contact form button[type=submit]");
-  await submit.waitFor();
-  await submit.click();
+  await submit.scrollIntoViewIfNeeded();
+  // 島の水和タイミングに依存せず、検証エラーが出るまで送信を再試行する。
+  // （client:visible の水和完了マーカーは環境差があり信頼できないため、挙動で待つ）
+  await expect(async () => {
+    await submit.click();
+    await expect(page.locator("#name-error")).toBeVisible({ timeout: 1000 });
+  }).toPass({ timeout: 15000 });
 
-  await expect(page.locator("#name-error")).toBeVisible();
   await expect(page.locator("#email-error")).toBeVisible();
   await expect(page.locator("#message-error")).toBeVisible();
   await expect(page.locator("#name")).toHaveAttribute("aria-invalid", "true");

@@ -23,7 +23,9 @@ const { contact } = site;
       </div>
 
       <div class="reveal lg:pt-2">
-        <ContactForm client:visible />
+        {/* client:idle: 重要な変換フォームの水和を IntersectionObserver に依存させず確実に。
+            client:visible は display:contents 島 × 一部ブラウザで IO 未発火の癖がある */}
+        <ContactForm client:idle />
       </div>
     </div>
   </Container>
