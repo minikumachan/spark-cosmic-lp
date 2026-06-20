@@ -1,0 +1,12 @@
+// Syncthing ignore — ビルド生成物/依存は同期しない（npmと競合し部分破損するため）
+node_modules
+dist
+.astro
+.wrangler
+.lighthouseci
+test-results
+playwright-report
+tests/__screenshots__
+scripts/og
+.DS_Store
+*.log
