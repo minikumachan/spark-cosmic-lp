@@ -1,0 +1,348 @@
+---
+import "../styles/fonts.css";
+import { getCollection } from "astro:content";
+import { site } from "../lib/content";
+import CosmicStage from "../components/three/cosmic/CosmicStage.tsx";
+const { hero, contact } = site;
+const services = await getCollection("services");
+const copy = site.sections.services;
+---
+
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>spark — cosmos (WIP)</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        background: #05060d;
+        color: #eef1ff;
+        font-family: "Zen Kaku Gothic New", system-ui, sans-serif;
+        overflow-x: hidden;
+      }
+      /* 永続コズミック背景（固定）。CSS フォールバックも兼ねる */
+      .cosmic-bg {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        background:
+          radial-gradient(ellipse 60% 50% at 72% 28%, rgba(86, 96, 230, 0.25), transparent 60%),
+          radial-gradient(ellipse 50% 55% at 20% 82%, rgba(190, 44, 150, 0.16), transparent 55%),
+          radial-gradient(circle at 50% 40%, #0a0c1c, #05060d 75%);
+      }
+      .content {
+        position: relative;
+        z-index: 1;
+        text-shadow: 0 1px 20px rgba(0, 0, 0, 0.6);
+      }
+      .wrap {
+        width: 100%;
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 0 clamp(1.5rem, 5vw, 4rem);
+      }
+      .eyebrow {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.72rem;
+        letter-spacing: 0.4em;
+        text-transform: uppercase;
+        color: #9db4ff;
+      }
+      .mono {
+        font-family: "JetBrains Mono", monospace;
+      }
+      .display {
+        font-family: "Clash Display", "Zen Kaku Gothic New", sans-serif;
+      }
+      .accent {
+        color: #7fb2ff;
+      }
+
+      /* ── HERO ── */
+      .hero {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        position: relative;
+      }
+      .hero h1 {
+        font-family: "Clash Display", "Zen Kaku Gothic New", sans-serif;
+        font-weight: 900;
+        font-size: clamp(2.6rem, 8vw, 6.5rem);
+        line-height: 0.97;
+        letter-spacing: -0.03em;
+        margin: 1.4rem 0;
+        max-width: 18ch;
+        text-shadow: 0 4px 60px rgba(0, 0, 0, 0.6);
+      }
+      .lead {
+        max-width: 38ch;
+        color: #b9c0e6;
+        font-size: clamp(1rem, 1.6vw, 1.2rem);
+        line-height: 1.9;
+      }
+      .cta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.4rem;
+        align-items: center;
+        margin-top: 2.4rem;
+      }
+      .btn {
+        display: inline-block;
+        background: #2f6bff;
+        color: #fff;
+        font-weight: 700;
+        padding: 0.95rem 1.9rem;
+        border-radius: 999px;
+        text-decoration: none;
+        box-shadow: 0 18px 50px rgba(47, 107, 255, 0.4);
+        transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      .btn:hover {
+        transform: translateY(-2px);
+      }
+      .ghost {
+        color: #cfd6ff;
+        text-decoration: none;
+        font-weight: 500;
+      }
+      .ghost:hover {
+        color: #fff;
+      }
+      .stats {
+        display: flex;
+        gap: 2.6rem;
+        margin-top: 3.2rem;
+      }
+      .stats dt {
+        font-family: "Clash Display", sans-serif;
+        font-weight: 700;
+        font-size: clamp(1.6rem, 3vw, 2.4rem);
+      }
+      .stats dd {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.65rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: #8b93c4;
+        margin-top: 0.4rem;
+      }
+      .scrollhint {
+        position: absolute;
+        bottom: 2.2rem;
+        left: 50%;
+        transform: translateX(-50%);
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.66rem;
+        letter-spacing: 0.3em;
+        color: #6b7099;
+        text-transform: uppercase;
+      }
+
+      /* ── card-less section ── */
+      .section {
+        padding: 14vh 0;
+        position: relative;
+      }
+      /* カード脱却のまま可読性確保：全幅の淡いダークスクリム（箱ではない） */
+      .section::before,
+      .contact::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        background: linear-gradient(
+          180deg,
+          transparent 0%,
+          rgba(5, 6, 14, 0.6) 14%,
+          rgba(5, 6, 14, 0.6) 86%,
+          transparent 100%
+        );
+      }
+      .section-head {
+        display: flex;
+        align-items: baseline;
+        gap: 1.2rem;
+        border-top: 1px solid rgba(160, 175, 255, 0.16);
+        padding-top: 2rem;
+        margin-bottom: 3.5rem;
+      }
+      .section-head .idx {
+        font-family: "Clash Display", sans-serif;
+        font-weight: 200;
+        font-size: clamp(2rem, 5vw, 4rem);
+        color: rgba(180, 195, 255, 0.45);
+      }
+      .section-head h2 {
+        font-family: "Clash Display", "Zen Kaku Gothic New", sans-serif;
+        font-weight: 800;
+        font-size: clamp(1.8rem, 4vw, 3.4rem);
+        letter-spacing: -0.02em;
+      }
+      .section-head .lead {
+        margin-left: auto;
+        max-width: 34ch;
+        padding-bottom: 0.4rem;
+        font-size: 0.95rem;
+      }
+      /* services = card脱却の罫線リスト */
+      .svc {
+        border-top: 1px solid rgba(160, 175, 255, 0.1);
+      }
+      .svc li {
+        display: grid;
+        grid-template-columns: 4rem 1fr 1.4fr;
+        gap: 1.5rem;
+        align-items: start;
+        padding: 2rem 0;
+        border-bottom: 1px solid rgba(160, 175, 255, 0.1);
+        list-style: none;
+        transition: background 0.3s;
+      }
+      .svc li:hover {
+        background: rgba(127, 178, 255, 0.04);
+      }
+      .svc .n {
+        font-family: "JetBrains Mono", monospace;
+        color: #7fb2ff;
+        font-size: 0.85rem;
+        padding-top: 0.4rem;
+      }
+      .svc .t {
+        font-family: "Clash Display", "Zen Kaku Gothic New", sans-serif;
+        font-weight: 700;
+        font-size: clamp(1.3rem, 2.4vw, 1.9rem);
+      }
+      .svc .en {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.66rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: #8b93c4;
+        margin-bottom: 0.5rem;
+      }
+      .svc .d {
+        color: #aab2dc;
+        line-height: 1.9;
+        padding-top: 0.3rem;
+      }
+      @media (max-width: 760px) {
+        .svc li {
+          grid-template-columns: 2.5rem 1fr;
+        }
+        .svc .d {
+          grid-column: 1 / -1;
+        }
+        .stats {
+          flex-wrap: wrap;
+          gap: 1.6rem;
+        }
+      }
+
+      /* ── contact ── */
+      .contact {
+        min-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        position: relative;
+      }
+      .contact h2 {
+        font-family: "Clash Display", "Zen Kaku Gothic New", sans-serif;
+        font-weight: 900;
+        font-size: clamp(2.4rem, 7vw, 5.5rem);
+        line-height: 0.98;
+        letter-spacing: -0.03em;
+      }
+      footer {
+        border-top: 1px solid rgba(160, 175, 255, 0.14);
+        padding: 3rem 0;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.72rem;
+        color: #8b93c4;
+        display: flex;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="cosmic-bg" aria-hidden="true"></div>
+    <CosmicStage client:only="react" />
+
+    <div class="content">
+      <!-- HERO -->
+      <header class="hero">
+        <div class="wrap">
+          <p class="eyebrow">{hero.eyebrow}</p>
+          <h1>{hero.title[0]}<br /><span class="accent">{hero.title[1]}</span></h1>
+          <p class="lead">{hero.lead}</p>
+          <div class="cta">
+            <a class="btn" href={hero.primary.href}>{hero.primary.label}</a>
+            <a class="ghost" href={hero.secondary.href}>{hero.secondary.label} →</a>
+          </div>
+          <dl class="stats">
+            {hero.stats.map((s) => (<div><dt class="display">{s.value}</dt><dd>{s.label}</dd></div>))}
+          </dl>
+        </div>
+        <p class="scrollhint">scroll ↓</p>
+      </header>
+
+      <!-- SERVICES (card脱却の罫線リスト) -->
+      <section class="section">
+        <div class="wrap">
+          <div class="section-head">
+            <span class="idx">01</span>
+            <h2>{copy.title}</h2>
+            <p class="lead">{copy.lead}</p>
+          </div>
+          <ul class="svc">
+            {services.map((s, i) => (
+              <li>
+                <span class="n">{String(i + 1).padStart(2, "0")}</span>
+                <div>
+                  <p class="en">{s.data.en}</p>
+                  <p class="t">{s.data.title}</p>
+                </div>
+                <p class="d">{s.data.desc}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      <!-- CONTACT -->
+      <section class="contact">
+        <div class="wrap">
+          <p class="eyebrow">{contact.eyebrow}</p>
+          <h2 style="margin-top:1.2rem;">{contact.title[0]}<br /><span class="accent">{contact.title[1]}</span></h2>
+          <p class="lead" style="margin-top:1.6rem;">{contact.lead}</p>
+          <div class="cta"><a class="btn" href="#">{contact.submit}</a></div>
+        </div>
+      </section>
+
+      <footer>
+        <div class="wrap" style="display:flex;justify-content:space-between;width:100%;flex-wrap:wrap;gap:1rem;">
+          <span>© 2026 spark — cosmos prototype (WIP)</span>
+          <span>Branding · Strategy · Design · Development</span>
+        </div>
+      </footer>
+    </div>
+  </body>
+</html>
