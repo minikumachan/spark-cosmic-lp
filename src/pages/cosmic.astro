@@ -50,6 +50,28 @@ const scopy = site.sections.strengths;
         z-index: 1;
         text-shadow: 0 1px 20px rgba(0, 0, 0, 0.6);
       }
+      /* 入場アニメ（IntersectionObserver で .in 付与・低モーションは即表示） */
+      .reveal-up {
+        opacity: 0;
+        transform: translateY(30px);
+        transition:
+          opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1),
+          transform 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      .reveal-up.in {
+        opacity: 1;
+        transform: none;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .reveal-up {
+          opacity: 1;
+          transform: none;
+          transition: none;
+        }
+        html {
+          scroll-behavior: auto;
+        }
+      }
       .wrap {
         width: 100%;
         max-width: 1180px;
@@ -80,6 +102,19 @@ const scopy = site.sections.strengths;
         flex-direction: column;
         justify-content: center;
         position: relative;
+      }
+      /* 見出し裏の局所スクリム（地球位置に依存せず可読性を担保・箱ではない） */
+      .hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        pointer-events: none;
+        background: radial-gradient(
+          ellipse 64% 76% at 30% 50%,
+          rgba(5, 6, 14, 0.72),
+          transparent 70%
+        );
       }
       .hero h1 {
         font-family: "Clash Display", "Zen Kaku Gothic New", sans-serif;
@@ -347,12 +382,12 @@ const scopy = site.sections.strengths;
       <!-- SERVICES (card脱却の罫線リスト) -->
       <section class="section">
         <div class="wrap">
-          <div class="section-head">
+          <div class="section-head reveal-up">
             <span class="idx">01</span>
             <h2>{copy.title}</h2>
             <p class="lead">{copy.lead}</p>
           </div>
-          <ul class="svc">
+          <ul class="svc reveal-up">
             {services.map((s, i) => (
               <li>
                 <span class="n">{String(i + 1).padStart(2, "0")}</span>
@@ -370,12 +405,12 @@ const scopy = site.sections.strengths;
       <!-- STRENGTHS（銀河の出現に重なる・特大数値） -->
       <section class="section strengths">
         <div class="wrap">
-          <div class="section-head">
+          <div class="section-head reveal-up">
             <span class="idx">02</span>
             <h2>{scopy.title}</h2>
             <p class="lead">{scopy.lead}</p>
           </div>
-          <div class="metrics">
+          <div class="metrics reveal-up">
             {strengths.map((s) => (
               <div class="metric">
                 <p class="num display">{s.data.metric}<span class="suf">{s.data.suffix}</span></p>
@@ -404,5 +439,20 @@ const scopy = site.sections.strengths;
         </div>
       </footer>
     </div>
+
+    <script>
+      const io = new IntersectionObserver(
+        (entries) => {
+          for (const e of entries) {
+            if (e.isIntersecting) {
+              e.target.classList.add("in");
+              io.unobserve(e.target);
+            }
+          }
+        },
+        { threshold: 0.15, rootMargin: "0px 0px -8% 0px" },
+      );
+      document.querySelectorAll(".reveal-up").forEach((el) => io.observe(el));
+    </script>
   </body>
 </html>
