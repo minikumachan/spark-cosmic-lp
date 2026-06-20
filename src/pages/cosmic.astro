@@ -6,6 +6,8 @@ import CosmicStage from "../components/three/cosmic/CosmicStage.tsx";
 const { hero, contact } = site;
 const services = await getCollection("services");
 const copy = site.sections.services;
+const strengths = await getCollection("strengths");
+const scopy = site.sections.strengths;
 ---
 
 <!doctype html>
@@ -254,6 +256,44 @@ const copy = site.sections.services;
         }
       }
 
+      /* ── strengths（特大数値・カード脱却グリッド） ── */
+      .strengths {
+        min-height: 100vh;
+      }
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 3.5rem 2rem;
+      }
+      .metric .num {
+        font-weight: 800;
+        font-size: clamp(3rem, 8vw, 6rem);
+        line-height: 1;
+        letter-spacing: -0.03em;
+        background: linear-gradient(180deg, #ffffff, #8fb6ff);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        color: transparent;
+      }
+      .metric .suf {
+        font-size: 0.45em;
+        margin-left: 0.12em;
+        -webkit-text-fill-color: #7fb2ff;
+      }
+      .metric .mt {
+        font-family: "Clash Display", "Zen Kaku Gothic New", sans-serif;
+        font-weight: 700;
+        font-size: 1.2rem;
+        margin-top: 0.9rem;
+      }
+      .metric .md {
+        color: #aab2dc;
+        line-height: 1.8;
+        margin-top: 0.6rem;
+        font-size: 0.92rem;
+      }
+
       /* ── contact ── */
       .contact {
         min-height: 90vh;
@@ -324,6 +364,26 @@ const copy = site.sections.services;
               </li>
             ))}
           </ul>
+        </div>
+      </section>
+
+      <!-- STRENGTHS（銀河の出現に重なる・特大数値） -->
+      <section class="section strengths">
+        <div class="wrap">
+          <div class="section-head">
+            <span class="idx">02</span>
+            <h2>{scopy.title}</h2>
+            <p class="lead">{scopy.lead}</p>
+          </div>
+          <div class="metrics">
+            {strengths.map((s) => (
+              <div class="metric">
+                <p class="num display">{s.data.metric}<span class="suf">{s.data.suffix}</span></p>
+                <p class="mt">{s.data.title}</p>
+                <p class="md">{s.data.desc}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
