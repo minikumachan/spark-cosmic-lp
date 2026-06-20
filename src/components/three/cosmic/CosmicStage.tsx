@@ -1,4 +1,4 @@
-import { Suspense, useMemo, useRef } from "react";
+import { Suspense, useEffect, useMemo, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { ScreenQuad, useTexture } from "@react-three/drei";
 import * as THREE from "three";
@@ -73,7 +73,7 @@ function Earth() {
     if (clouds.current) clouds.current.rotation.y += d * 0.034;
   });
   return (
-    <group rotation={[0.33, 0, 0.1]} scale={2.0} position={[1.7, -1.4, 0]}>
+    <group rotation={[0.33, 0, 0.1]} scale={2.0} position={[2.15, -1.75, 0]}>
       <mesh ref={earth}>
         <sphereGeometry args={[1, 128, 128]} />
         <meshStandardMaterial map={day} normalMap={normal} normalScale={new THREE.Vector2(0.85, 0.85)} emissiveMap={lights} emissive={new THREE.Color("#ffd9a0")} emissiveIntensity={0.5} roughness={0.82} metalness={0.05} />
@@ -116,14 +116,14 @@ function Stars() {
 
 function Rig() {
   const scroll = useRef(0);
-  useMemo(() => {
-    if (typeof window === "undefined") return;
+  useEffect(() => {
     const onScroll = () => {
       const max = document.documentElement.scrollHeight - window.innerHeight;
       scroll.current = max > 0 ? window.scrollY / max : 0;
     };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
   useFrame(({ clock, camera }) => {
     const t = clock.elapsedTime;
@@ -136,7 +136,7 @@ function Rig() {
     camera.position.x += (tx - camera.position.x) * 0.05;
     camera.position.y += (ty - camera.position.y) * 0.05;
     camera.position.z += (tz - camera.position.z) * 0.05;
-    camera.lookAt(1.7, -1.4 + e * 5.0, 0);
+    camera.lookAt(2.15, -1.75 + e * 5.0, 0);
   });
   return (
     <>
@@ -165,7 +165,7 @@ export default function CosmicStage() {
   return (
     <Canvas
       style={{ position: "fixed", inset: 0 }}
-      dpr={[1, 2]}
+      dpr={[1, 1.5]}
       camera={{ position: [0, 0.2, 3.6], fov: 50 }}
       gl={{ antialias: true, alpha: false, powerPreference: "high-performance" }}
     >
