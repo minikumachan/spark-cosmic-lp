@@ -14,15 +14,20 @@ type V = {
   src: string;
   rocky?: boolean;
   ring?: boolean;
+  sun?: boolean;
   atmo?: string;
   facts: [string, string][];
 };
 const PLANETS: V[] = [
+  { key: "sun", name: "太陽", en: "Sun", src: "/assets/planet/sun.webp", sun: true, facts: [["直径", "1,392,700 km"], ["表面温度", "約 5,500 ℃"], ["太陽系質量", "99.86 %"], ["種別", "G型主系列星"]] },
+  { key: "mercury", name: "水星", en: "Mercury", src: "/assets/planet/mercury.webp", rocky: true, facts: [["直径", "4,879 km"], ["太陽から", "0.39 AU"], ["公転周期", "88 日"], ["大気", "ほぼ無し"]] },
+  { key: "venus", name: "金星", en: "Venus", src: "/assets/planet/venus.webp", atmo: "#e8c87a", facts: [["直径", "12,104 km"], ["太陽から", "0.72 AU"], ["公転周期", "225 日"], ["表面温度", "462 ℃"]] },
   { key: "earth", name: "地球", en: "Earth", src: "/assets/planet/earth_day.webp", rocky: true, atmo: "#5fb8ff", facts: [["直径", "12,742 km"], ["太陽から", "1.0 AU"], ["公転周期", "365 日"], ["衛星", "1（月）"]] },
   { key: "moon", name: "月", en: "Moon", src: "/assets/planet/moon.webp", rocky: true, facts: [["直径", "3,474 km"], ["地球から", "384,400 km"], ["公転周期", "27.3 日"], ["重力", "地球の 1/6"]] },
   { key: "mars", name: "火星", en: "Mars", src: "/assets/planet/mars.webp", rocky: true, atmo: "#ff7a4d", facts: [["直径", "6,779 km"], ["太陽から", "1.52 AU"], ["公転周期", "687 日"], ["衛星", "2"]] },
   { key: "jupiter", name: "木星", en: "Jupiter", src: "/assets/planet/jupiter.webp", atmo: "#e8b87a", facts: [["直径", "139,820 km"], ["太陽から", "5.2 AU"], ["公転周期", "11.9 年"], ["衛星", "95+"]] },
   { key: "saturn", name: "土星", en: "Saturn", src: "/assets/planet/saturn.webp", ring: true, atmo: "#e6c77a", facts: [["直径", "116,460 km"], ["太陽から", "9.5 AU"], ["公転周期", "29.5 年"], ["環", "主要 7 本"]] },
+  { key: "uranus", name: "天王星", en: "Uranus", src: "/assets/planet/uranus.webp", atmo: "#9fe8e0", facts: [["直径", "50,724 km"], ["太陽から", "19.2 AU"], ["公転周期", "84 年"], ["自転軸", "98°（横倒し）"]] },
   { key: "neptune", name: "海王星", en: "Neptune", src: "/assets/planet/neptune.webp", atmo: "#5b8cff", facts: [["直径", "49,244 km"], ["太陽から", "30 AU"], ["公転周期", "165 年"], ["最大風速", "2,100 km/h"]] },
 ];
 
@@ -60,10 +65,26 @@ function ViewerPlanet({ p }: { p: V }) {
     <group rotation={[0.25, 0, 0.08]}>
       <mesh ref={ref}>
         <sphereGeometry args={[1, 160, 160]} />
-        <meshStandardMaterial map={map} bumpMap={p.rocky ? map : null} bumpScale={p.rocky ? 0.04 : 0} roughness={p.rocky ? 0.95 : 0.55} metalness={0} />
+        {p.sun ? (
+          <meshBasicMaterial map={map} toneMapped={false} />
+        ) : (
+          <meshStandardMaterial map={map} bumpMap={p.rocky ? map : null} bumpScale={p.rocky ? 0.04 : 0} roughness={p.rocky ? 0.95 : 0.55} metalness={0} />
+        )}
       </mesh>
+      {p.sun && (
+        <>
+          <mesh scale={1.22}>
+            <sphereGeometry args={[1, 32, 32]} />
+            <meshBasicMaterial color="#ffd98a" transparent opacity={0.22} blending={THREE.AdditiveBlending} depthWrite={false} />
+          </mesh>
+          <mesh scale={1.7}>
+            <sphereGeometry args={[1, 32, 32]} />
+            <meshBasicMaterial color="#ffb84d" transparent opacity={0.1} blending={THREE.AdditiveBlending} depthWrite={false} />
+          </mesh>
+        </>
+      )}
       {p.ring && <ViewerRing />}
-      {p.atmo && (
+      {!p.sun && p.atmo && (
         <mesh scale={1.05}>
           <sphereGeometry args={[1, 64, 64]} />
           <shaderMaterial vertexShader={atmoVert} fragmentShader={rimFrag} uniforms={u} side={THREE.BackSide} blending={THREE.AdditiveBlending} transparent depthWrite={false} />

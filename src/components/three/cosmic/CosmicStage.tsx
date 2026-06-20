@@ -143,6 +143,7 @@ type PlanetDef = {
   rot: number;
   tilt: number;
   ring?: boolean;
+  faintRing?: boolean;
   rocky?: boolean;
   atmo?: string;
 };
@@ -153,8 +154,23 @@ const PLANETS: PlanetDef[] = [
   { src: "/assets/planet/saturn.webp", pos: [-15.5, -2, -26], scale: 1.6, rot: 0.06, tilt: 0.42, ring: true, atmo: "#e6c77a" },
   { src: "/assets/planet/neptune.webp", pos: [-19, 5.6, -33], scale: 1.2, rot: 0.05, tilt: 0.25, atmo: "#5b8cff" },
 ];
+// 太陽系を完全再現する常在天体（水星・金星・天王星）。内惑星は太陽側、天王星は土星-海王星間。
+const AMBIENT: PlanetDef[] = [
+  { src: "/assets/planet/mercury.webp", pos: [16, 5, 9], scale: 0.42, rot: 0.008, tilt: 0.03, rocky: true },
+  { src: "/assets/planet/venus.webp", pos: [10, 1.5, 5], scale: 0.85, rot: -0.006, tilt: 0.05, atmo: "#e8c87a" },
+  { src: "/assets/planet/uranus.webp", pos: [-17.5, 1.5, -30], scale: 1.3, rot: 0.05, tilt: 1.6, faintRing: true, atmo: "#9fe8e0" },
+];
 
-function Planet({ src, pos, scale, rot, tilt, ring, rocky, atmo }: PlanetDef) {
+function FaintRing() {
+  const geo = useMemo(() => new THREE.RingGeometry(1.4, 1.95, 96), []);
+  return (
+    <mesh geometry={geo} rotation={[-Math.PI / 2 + 0.05, 0, 0]}>
+      <meshBasicMaterial color="#9fe8e0" transparent opacity={0.18} side={THREE.DoubleSide} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
+    </mesh>
+  );
+}
+
+function Planet({ src, pos, scale, rot, tilt, ring, faintRing, rocky, atmo }: PlanetDef) {
   const ref = useRef<THREE.Mesh>(null);
   const map = useTexture(src);
   useMemo(() => {
@@ -177,8 +193,61 @@ function Planet({ src, pos, scale, rot, tilt, ring, rocky, atmo }: PlanetDef) {
         />
       </mesh>
       {ring && <SaturnRing />}
+      {faintRing && <FaintRing />}
       {atmo && <AtmosphereRim color={atmo} />}
     </group>
+  );
+}
+
+// 常在天体（水星/金星/天王星）＝太陽系の完全再現
+function AmbientBodies() {
+  return (
+    <>
+      {AMBIENT.map((p) => (
+        <Suspense key={p.src} fallback={null}>
+          <Planet {...p} />
+        </Suspense>
+      ))}
+    </>
+  );
+}
+
+// 衛星（ガス惑星を周回）：木星=ガリレオ衛星4＋土星=タイタン
+type MoonDef = { center: [number, number, number]; radius: number; size: number; color: string; speed: number; phase: number; incline: number };
+const MOONS: MoonDef[] = [
+  // Jupiter [-11.5,4.2,-18.5]（ガリレオ衛星）
+  { center: [-11.5, 4.2, -18.5], radius: 3.4, size: 0.12, color: "#e8d27a", speed: 0.5, phase: 0, incline: 0.2 }, // Io
+  { center: [-11.5, 4.2, -18.5], radius: 4.2, size: 0.11, color: "#e8e0d0", speed: 0.38, phase: 1.6, incline: 0.15 }, // Europa
+  { center: [-11.5, 4.2, -18.5], radius: 5.1, size: 0.16, color: "#b9a98a", speed: 0.3, phase: 3.0, incline: 0.25 }, // Ganymede
+  { center: [-11.5, 4.2, -18.5], radius: 6.2, size: 0.15, color: "#8a8378", speed: 0.24, phase: 4.5, incline: 0.1 }, // Callisto
+  // Saturn [-15.5,-2,-26]（タイタン）
+  { center: [-15.5, -2, -26], radius: 3.6, size: 0.14, color: "#d8a85a", speed: 0.3, phase: 2.0, incline: 0.3 }, // Titan
+];
+function Moon3D({ m }: { m: MoonDef }) {
+  const ref = useRef<THREE.Mesh>(null);
+  useFrame(({ clock }) => {
+    if (!ref.current) return;
+    const a = clock.elapsedTime * m.speed + m.phase;
+    ref.current.position.set(
+      m.center[0] + Math.cos(a) * m.radius,
+      m.center[1] + Math.sin(a) * m.radius * m.incline,
+      m.center[2] + Math.sin(a) * m.radius,
+    );
+  });
+  return (
+    <mesh ref={ref}>
+      <sphereGeometry args={[m.size, 20, 20]} />
+      <meshStandardMaterial color={m.color} roughness={1} metalness={0} />
+    </mesh>
+  );
+}
+function Moons() {
+  return (
+    <>
+      {MOONS.map((m, i) => (
+        <Moon3D key={i} m={m} />
+      ))}
+    </>
   );
 }
 
@@ -305,21 +374,29 @@ function AsteroidBelt() {
   );
 }
 
-// 遠方の太陽（光源の視覚化・グロー）
+// 太陽（実テクスチャの表面＋コロナのグロー・光源）
 function Sun() {
+  const tex = useTexture("/assets/planet/sun.webp");
+  useMemo(() => { tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; }, [tex]);
+  const core = useRef<THREE.Mesh>(null);
+  useFrame((_, d) => { if (core.current) core.current.rotation.y += d * 0.012; });
   return (
     <group position={[24, 8, 16]}>
-      <mesh>
-        <sphereGeometry args={[1.1, 24, 24]} />
-        <meshBasicMaterial color="#fff3d8" fog={false} />
+      <mesh ref={core}>
+        <sphereGeometry args={[1.7, 48, 48]} />
+        <meshBasicMaterial map={tex} toneMapped={false} fog={false} />
       </mesh>
       <mesh>
-        <sphereGeometry args={[3, 20, 20]} />
-        <meshBasicMaterial color="#ffd98a" transparent opacity={0.16} blending={THREE.AdditiveBlending} depthWrite={false} fog={false} />
+        <sphereGeometry args={[2.2, 24, 24]} />
+        <meshBasicMaterial color="#ffd98a" transparent opacity={0.28} blending={THREE.AdditiveBlending} depthWrite={false} fog={false} />
       </mesh>
       <mesh>
-        <sphereGeometry args={[6.5, 20, 20]} />
-        <meshBasicMaterial color="#ffba52" transparent opacity={0.05} blending={THREE.AdditiveBlending} depthWrite={false} fog={false} />
+        <sphereGeometry args={[3.6, 24, 24]} />
+        <meshBasicMaterial color="#ffb84d" transparent opacity={0.12} blending={THREE.AdditiveBlending} depthWrite={false} fog={false} />
+      </mesh>
+      <mesh>
+        <sphereGeometry args={[7, 20, 20]} />
+        <meshBasicMaterial color="#ff9a3d" transparent opacity={0.05} blending={THREE.AdditiveBlending} depthWrite={false} fog={false} />
       </mesh>
     </group>
   );
@@ -600,7 +677,9 @@ function Rig() {
       <NebulaClouds />
       <DistantGalaxies />
       <Stars />
-      <Sun />
+      <Suspense fallback={null}>
+        <Sun />
+      </Suspense>
       <ShootingStars />
       <Comet />
       <AsteroidBelt />
@@ -609,6 +688,8 @@ function Rig() {
         <Earth />
       </Suspense>
       <Planets />
+      <AmbientBodies />
+      <Moons />
       {!MOBILE && (
         <EffectComposer>
           <Bloom luminanceThreshold={0.62} luminanceSmoothing={0.25} intensity={0.7} mipmapBlur radius={0.6} />
