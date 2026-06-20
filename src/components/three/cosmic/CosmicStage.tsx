@@ -166,44 +166,68 @@ function Stars() {
   );
 }
 
-// ── camera waypoints（地球 → 深宇宙 → 銀河） ──
-const WP: { a: number; p: [number, number, number]; l: [number, number, number] }[] = [
-  { a: 0.0, p: [0, 0.2, 3.6], l: [2.15, -1.75, 0] },
-  { a: 0.4, p: [-1, 3, 9], l: [GX * 0.4, GY * 0.45, GZ * 0.4] },
-  { a: 0.7, p: [GX + 2, GY + 4.5, GZ + 11], l: [GX, GY, GZ] },
-  { a: 1.0, p: [GX - 1, GY + 2, GZ + 7.5], l: [GX, GY, GZ] },
+// ── camera stops（各カメラ状態を DOM セクションに束ねる＝セクション数に非依存） ──
+const STOPS: { sel: string; p: [number, number, number]; l: [number, number, number] }[] = [
+  { sel: "header.hero", p: [0, 0.2, 3.6], l: [2.15, -1.75, 0] }, // 地球(主役)
+  { sel: "#works", p: [-1, 3, 9], l: [GX * 0.4, GY * 0.45, GZ * 0.4] }, // 深宇宙へ
+  { sel: "#pricing", p: [GX + 3, GY + 5.5, GZ + 13], l: [GX, GY, GZ] }, // 銀河接近
+  { sel: "#contact", p: [GX + 1.5, GY + 4, GZ + 10], l: [GX, GY, GZ] }, // 銀河到達
 ];
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 function Rig() {
-  const scroll = useRef(0);
+  // 各 STOP セクションの「文書内 中心Y」をキャッシュ（scroll では再計測しない＝スラッシング回避）
+  const centers = useRef<number[]>([]);
+  const scrollY = useRef(0);
   useEffect(() => {
-    const onScroll = () => {
-      const max = document.documentElement.scrollHeight - window.innerHeight;
-      scroll.current = max > 0 ? window.scrollY / max : 0;
+    const measure = () => {
+      centers.current = STOPS.map((s) => {
+        const el = document.querySelector(s.sel) as HTMLElement | null;
+        if (!el) return Number.NaN;
+        const r = el.getBoundingClientRect();
+        return r.top + window.scrollY + r.height / 2;
+      });
     };
+    const onScroll = () => {
+      scrollY.current = window.scrollY;
+    };
+    measure();
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    window.addEventListener("resize", measure);
+    const tid = window.setTimeout(measure, 700); // フォント/画像確定後に再計測
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", measure);
+      window.clearTimeout(tid);
+    };
   }, []);
-  const target = useMemo(() => new THREE.Vector3(0, 0.2, 3.6), []);
-  const look = useMemo(() => new THREE.Vector3(2.15, -1.75, 0), []);
-  useFrame(({ clock, camera }) => {
+  const target = useMemo(() => new THREE.Vector3(...STOPS[0].p), []);
+  const look = useMemo(() => new THREE.Vector3(...STOPS[0].l), []);
+  useFrame(({ clock, camera }, delta) => {
     const t = clock.elapsedTime;
-    const s = Math.min(Math.max(scroll.current, 0), 1);
+    const c = centers.current;
+    const probe = scrollY.current + window.innerHeight / 2;
     let i = 0;
-    while (i < WP.length - 2 && s > WP[i + 1].a) i++;
-    const w0 = WP[i], w1 = WP[i + 1];
-    let f = (s - w0.a) / (w1.a - w0.a);
+    if (c.length === STOPS.length) {
+      while (i < STOPS.length - 2 && Number.isFinite(c[i + 1]) && probe > c[i + 1]) i++;
+    }
+    const c0 = c[i],
+      c1 = c[i + 1];
+    let f =
+      Number.isFinite(c0) && Number.isFinite(c1) && c1 > c0 ? (probe - c0) / (c1 - c0) : 0;
     f = Math.min(Math.max(f, 0), 1);
     f = f * f * (3 - 2 * f);
+    const w0 = STOPS[i],
+      w1 = STOPS[i + 1] ?? STOPS[i];
     target.set(
       lerp(w0.p[0], w1.p[0], f) + Math.sin(t * 0.06) * 0.25,
       lerp(w0.p[1], w1.p[1], f) + Math.sin(t * 0.08) * 0.18,
       lerp(w0.p[2], w1.p[2], f),
     );
     look.set(lerp(w0.l[0], w1.l[0], f), lerp(w0.l[1], w1.l[1], f), lerp(w0.l[2], w1.l[2], f));
-    camera.position.lerp(target, 0.055);
+    const k = 1 - Math.exp(-5 * delta); // フレームレート非依存の追従（P1-3）
+    camera.position.lerp(target, k);
     camera.lookAt(look);
   });
   return (
