@@ -145,18 +145,19 @@ type PlanetDef = {
   ring?: boolean;
   faintRing?: boolean;
   rocky?: boolean;
+  bump?: number;
   atmo?: string;
 };
 const PLANETS: PlanetDef[] = [
-  { src: "/assets/planet/moon.webp", pos: [-3, 1.8, -5.5], scale: 0.5, rot: 0.02, tilt: 0.2, rocky: true },
-  { src: "/assets/planet/mars.webp", pos: [-7.5, -2.6, -11.5], scale: 0.9, rot: 0.05, tilt: 0.35, rocky: true, atmo: "#ff7a4d" },
+  { src: "/assets/planet/moon.webp", pos: [-3, 1.8, -5.5], scale: 0.5, rot: 0.02, tilt: 0.2, rocky: true, bump: 0.11 },
+  { src: "/assets/planet/mars.webp", pos: [-7.5, -2.6, -11.5], scale: 0.9, rot: 0.05, tilt: 0.35, rocky: true, bump: 0.07, atmo: "#ff7a4d" },
   { src: "/assets/planet/jupiter.webp", pos: [-11.5, 4.2, -18.5], scale: 2.3, rot: 0.07, tilt: 0.18, atmo: "#e8b87a" },
   { src: "/assets/planet/saturn.webp", pos: [-15.5, -2, -26], scale: 1.6, rot: 0.06, tilt: 0.42, ring: true, atmo: "#e6c77a" },
   { src: "/assets/planet/neptune.webp", pos: [-19, 5.6, -33], scale: 1.2, rot: 0.05, tilt: 0.25, atmo: "#5b8cff" },
 ];
 // 太陽系を完全再現する常在天体（水星・金星・天王星）。内惑星は太陽側、天王星は土星-海王星間。
 const AMBIENT: PlanetDef[] = [
-  { src: "/assets/planet/mercury.webp", pos: [16, 5, 9], scale: 0.42, rot: 0.008, tilt: 0.03, rocky: true },
+  { src: "/assets/planet/mercury.webp", pos: [16, 5, 9], scale: 0.42, rot: 0.008, tilt: 0.03, rocky: true, bump: 0.1 },
   { src: "/assets/planet/venus.webp", pos: [10, 1.5, 5], scale: 0.85, rot: -0.006, tilt: 0.05, atmo: "#e8c87a" },
   { src: "/assets/planet/uranus.webp", pos: [-17.5, 1.5, -30], scale: 1.3, rot: 0.05, tilt: 1.6, faintRing: true, atmo: "#9fe8e0" },
 ];
@@ -170,7 +171,7 @@ function FaintRing() {
   );
 }
 
-function Planet({ src, pos, scale, rot, tilt, ring, faintRing, rocky, atmo }: PlanetDef) {
+function Planet({ src, pos, scale, rot, tilt, ring, faintRing, rocky, bump, atmo }: PlanetDef) {
   const ref = useRef<THREE.Mesh>(null);
   const map = useTexture(src);
   useMemo(() => {
@@ -183,12 +184,12 @@ function Planet({ src, pos, scale, rot, tilt, ring, faintRing, rocky, atmo }: Pl
   return (
     <group position={pos} rotation={[tilt, 0, 0.04]} scale={scale}>
       <mesh ref={ref}>
-        <sphereGeometry args={[1, 96, 96]} />
+        <sphereGeometry args={[1, 128, 128]} />
         <meshStandardMaterial
           map={map}
           bumpMap={rocky ? map : null}
-          bumpScale={rocky ? 0.035 : 0}
-          roughness={rocky ? 0.95 : 0.6}
+          bumpScale={bump ?? (rocky ? 0.06 : 0)}
+          roughness={rocky ? 0.96 : 0.62}
           metalness={0}
         />
       </mesh>
@@ -330,8 +331,8 @@ function Stars() {
     g.setAttribute("color", new THREE.BufferAttribute(col, 3));
     return g;
   };
-  const dense = useMemo(() => make(MOBILE ? 2000 : 4200, 20, 70, 0.35), []);
-  const bright = useMemo(() => make(MOBILE ? 120 : 280, 14, 50, 0.8), []);
+  const dense = useMemo(() => make(MOBILE ? 3000 : 7000, 20, 80, 0.3), []);
+  const bright = useMemo(() => make(MOBILE ? 150 : 360, 14, 55, 0.82), []);
   useEffect(() => () => { dense.dispose(); bright.dispose(); }, [dense, bright]);
   return (
     <>
@@ -670,9 +671,9 @@ function Rig() {
     <>
       <AdaptiveQuality />
       <fog attach="fog" args={["#0a0c1a", 18, 62]} />
-      <ambientLight intensity={0.11} />
-      <directionalLight position={[24, 8, 16]} intensity={3.0} color="#fff4e6" />
-      <directionalLight position={[-8, 2, -10]} intensity={0.5} color="#7da6ff" />
+      <ambientLight intensity={0.045} />
+      <directionalLight position={[24, 8, 16]} intensity={3.6} color="#fff4e6" />
+      <directionalLight position={[-9, 1, -12]} intensity={0.4} color="#6f9cff" />
       <Nebula />
       <NebulaClouds />
       <DistantGalaxies />

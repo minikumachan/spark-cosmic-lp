@@ -1,6 +1,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, useTexture, Stars } from "@react-three/drei";
+import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import * as THREE from "three";
 
 /* 惑星鑑賞モード：フルスクリーン・OrbitControlsで自由に回転/ズーム。
@@ -68,7 +69,7 @@ function ViewerPlanet({ p }: { p: V }) {
         {p.sun ? (
           <meshBasicMaterial map={map} toneMapped={false} />
         ) : (
-          <meshStandardMaterial map={map} bumpMap={p.rocky ? map : null} bumpScale={p.rocky ? 0.04 : 0} roughness={p.rocky ? 0.95 : 0.55} metalness={0} />
+          <meshStandardMaterial map={map} bumpMap={p.rocky ? map : null} bumpScale={p.rocky ? 0.07 : 0} roughness={p.rocky ? 0.96 : 0.55} metalness={0} />
         )}
       </mesh>
       {p.sun && (
@@ -91,6 +92,79 @@ function ViewerPlanet({ p }: { p: V }) {
         </mesh>
       )}
     </group>
+  );
+}
+
+// 地球は雲＋夜景(街の灯)＋法線＋大気のフル再現
+function ViewerEarth() {
+  const earth = useRef<THREE.Mesh>(null);
+  const clouds = useRef<THREE.Mesh>(null);
+  const [day, normal, clud, lights] = useTexture([
+    "/assets/planet/earth_day.webp",
+    "/assets/planet/earth_normal.webp",
+    "/assets/planet/earth_clouds.webp",
+    "/assets/planet/earth_lights.webp",
+  ]);
+  useMemo(() => {
+    day.colorSpace = THREE.SRGBColorSpace;
+    lights.colorSpace = THREE.SRGBColorSpace;
+    clud.colorSpace = THREE.SRGBColorSpace;
+    for (const t of [day, normal, clud, lights]) t.anisotropy = 16;
+  }, [day, normal, clud, lights]);
+  const u = useMemo(() => ({ uColor: { value: new THREE.Color("#5fb8ff") } }), []);
+  useFrame((_, d) => {
+    if (earth.current) earth.current.rotation.y += d * 0.05;
+    if (clouds.current) clouds.current.rotation.y += d * 0.068;
+  });
+  return (
+    <group rotation={[0.25, 0, 0.08]}>
+      <mesh ref={earth}>
+        <sphereGeometry args={[1, 200, 200]} />
+        <meshStandardMaterial map={day} normalMap={normal} normalScale={new THREE.Vector2(1, 1)} emissiveMap={lights} emissive={new THREE.Color("#ffd9a0")} emissiveIntensity={0.9} roughness={0.85} metalness={0.05} />
+      </mesh>
+      <mesh ref={clouds} scale={1.012}>
+        <sphereGeometry args={[1, 96, 96]} />
+        <meshStandardMaterial map={clud} alphaMap={clud} transparent opacity={0.9} depthWrite={false} roughness={1} />
+      </mesh>
+      <mesh scale={1.045}>
+        <sphereGeometry args={[1, 64, 64]} />
+        <shaderMaterial vertexShader={atmoVert} fragmentShader={rimFrag} uniforms={u} side={THREE.BackSide} blending={THREE.AdditiveBlending} transparent depthWrite={false} />
+      </mesh>
+    </group>
+  );
+}
+
+// 鑑賞中の背景に「宇宙の中にいる」文脈（遠方の太陽＋他の天体）
+function ViewerBackdrop() {
+  const [sun, jup, nep] = useTexture([
+    "/assets/planet/sun.webp",
+    "/assets/planet/jupiter.webp",
+    "/assets/planet/neptune.webp",
+  ]);
+  useMemo(() => {
+    for (const t of [sun, jup, nep]) t.colorSpace = THREE.SRGBColorSpace;
+  }, [sun, jup, nep]);
+  return (
+    <>
+      <group position={[-24, 10, -40]}>
+        <mesh>
+          <sphereGeometry args={[2.4, 32, 32]} />
+          <meshBasicMaterial map={sun} toneMapped={false} />
+        </mesh>
+        <mesh scale={1.7}>
+          <sphereGeometry args={[2.4, 24, 24]} />
+          <meshBasicMaterial color="#ffd98a" transparent opacity={0.16} blending={THREE.AdditiveBlending} depthWrite={false} />
+        </mesh>
+      </group>
+      <mesh position={[18, -6, -30]} rotation={[0.2, 0, 0.1]}>
+        <sphereGeometry args={[1.5, 48, 48]} />
+        <meshStandardMaterial map={jup} roughness={0.6} />
+      </mesh>
+      <mesh position={[-14, -8, -24]} rotation={[0.25, 0, 0]}>
+        <sphereGeometry args={[0.85, 48, 48]} />
+        <meshStandardMaterial map={nep} roughness={0.55} />
+      </mesh>
+    </>
   );
 }
 
@@ -127,14 +201,20 @@ export default function PlanetViewer() {
   return (
     <div role="dialog" aria-modal="true" aria-label="惑星鑑賞" style={S.overlay}>
       <Canvas camera={{ position: [0, 0.3, 4], fov: 45 }} dpr={[1, 2]} gl={{ antialias: true, alpha: false }} style={{ position: "absolute", inset: 0 }}>
-        <color attach="background" args={["#05060d"]} />
-        <ambientLight intensity={0.12} />
-        <directionalLight position={[5, 3, 5]} intensity={2.8} color="#fff4e6" />
-        <directionalLight position={[-5, -1, -4]} intensity={0.4} color="#7da6ff" />
-        <Stars radius={60} depth={40} count={3000} factor={3} saturation={0.4} fade speed={0.4} />
+        <color attach="background" args={["#04050b"]} />
+        <ambientLight intensity={0.05} />
+        <directionalLight position={[5, 2.5, 4]} intensity={3.4} color="#fff4e6" />
+        <directionalLight position={[-5, -1, -4]} intensity={0.35} color="#6f9cff" />
+        <Stars radius={80} depth={50} count={4000} factor={3.5} saturation={0.5} fade speed={0.3} />
         <Suspense fallback={null}>
-          <ViewerPlanet p={p} key={p.key} />
+          <ViewerBackdrop />
         </Suspense>
+        <Suspense fallback={null}>
+          {p.key === "earth" ? <ViewerEarth /> : <ViewerPlanet p={p} key={p.key} />}
+        </Suspense>
+        <EffectComposer>
+          <Bloom luminanceThreshold={0.6} luminanceSmoothing={0.3} intensity={0.7} mipmapBlur radius={0.6} />
+        </EffectComposer>
         <OrbitControls enablePan={false} autoRotate autoRotateSpeed={0.4} minDistance={2.2} maxDistance={9} enableDamping dampingFactor={0.07} />
       </Canvas>
 
