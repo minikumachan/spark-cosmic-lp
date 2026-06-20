@@ -8,7 +8,7 @@ import * as THREE from "three";
    地球(hero)→月→火星→木星→土星(環)→海王星→銀河(contact)。
    軽量化: 全テクスチャWebP(計~0.6MB)、モバイルは粒子/星雲/dpr削減、非表示時は描画停止。 ── */
 
-const GX = -13, GY = 4.5, GZ = -22; // 銀河の位置
+const GX = -22, GY = 6.5, GZ = -40; // 銀河の位置（旅の終点・遠方）
 
 const MOBILE =
   typeof window !== "undefined" &&
@@ -146,11 +146,11 @@ type PlanetDef = {
   atmo?: string;
 };
 const PLANETS: PlanetDef[] = [
-  { src: "/assets/planet/moon.webp", pos: [-2.6, 1.3, -4.2], scale: 0.5, rot: 0.02, tilt: 0.2, rocky: true },
-  { src: "/assets/planet/mars.webp", pos: [-5.6, -1.8, -8.4], scale: 0.9, rot: 0.05, tilt: 0.35, rocky: true, atmo: "#ff7a4d" },
-  { src: "/assets/planet/jupiter.webp", pos: [-8.6, 3.2, -12.8], scale: 2.3, rot: 0.07, tilt: 0.18, atmo: "#e8b87a" },
-  { src: "/assets/planet/saturn.webp", pos: [-10.6, -1.4, -16.8], scale: 1.5, rot: 0.06, tilt: 0.42, ring: true, atmo: "#e6c77a" },
-  { src: "/assets/planet/neptune.webp", pos: [-12.2, 4.6, -19.8], scale: 1.1, rot: 0.05, tilt: 0.25, atmo: "#5b8cff" },
+  { src: "/assets/planet/moon.webp", pos: [-3, 1.8, -5.5], scale: 0.5, rot: 0.02, tilt: 0.2, rocky: true },
+  { src: "/assets/planet/mars.webp", pos: [-7.5, -2.6, -11.5], scale: 0.9, rot: 0.05, tilt: 0.35, rocky: true, atmo: "#ff7a4d" },
+  { src: "/assets/planet/jupiter.webp", pos: [-11.5, 4.2, -18.5], scale: 2.3, rot: 0.07, tilt: 0.18, atmo: "#e8b87a" },
+  { src: "/assets/planet/saturn.webp", pos: [-15.5, -2, -26], scale: 1.6, rot: 0.06, tilt: 0.42, ring: true, atmo: "#e6c77a" },
+  { src: "/assets/planet/neptune.webp", pos: [-19, 5.6, -33], scale: 1.2, rot: 0.05, tilt: 0.25, atmo: "#5b8cff" },
 ];
 
 function Planet({ src, pos, scale, rot, tilt, ring, rocky, atmo }: PlanetDef) {
@@ -237,26 +237,90 @@ function AdaptiveQuality() {
   );
 }
 
+// 星：色/明るさに変化のある密な層＋疎で明るい層
 function Stars() {
-  const geometry = useMemo(() => {
-    const count = MOBILE ? 1400 : 2800;
-    const pos = new Float32Array(count * 3);
+  const tint = useMemo(
+    () => [new THREE.Color("#ffffff"), new THREE.Color("#bcd0ff"), new THREE.Color("#ffe6c2"), new THREE.Color("#cfe0ff")],
+    [],
+  );
+  const make = (count: number, rMin: number, rMax: number, bMin: number) => {
+    const pos = new Float32Array(count * 3), col = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
-      const i3 = i * 3, r = 18 + Math.random() * 48;
+      const i3 = i * 3, r = rMin + Math.random() * (rMax - rMin);
       const th = Math.acos(2 * Math.random() - 1), ph = Math.random() * Math.PI * 2;
       pos[i3] = r * Math.sin(th) * Math.cos(ph);
       pos[i3 + 1] = r * Math.cos(th);
       pos[i3 + 2] = r * Math.sin(th) * Math.sin(ph);
+      const c = tint[(Math.random() * tint.length) | 0];
+      const b = bMin + Math.random() * (1 - bMin);
+      col[i3] = c.r * b; col[i3 + 1] = c.g * b; col[i3 + 2] = c.b * b;
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    g.setAttribute("color", new THREE.BufferAttribute(col, 3));
     return g;
-  }, []);
-  useEffect(() => () => geometry.dispose(), [geometry]);
+  };
+  const dense = useMemo(() => make(MOBILE ? 2000 : 4200, 20, 70, 0.35), []);
+  const bright = useMemo(() => make(MOBILE ? 120 : 280, 14, 50, 0.8), []);
+  useEffect(() => () => { dense.dispose(); bright.dispose(); }, [dense, bright]);
   return (
-    <points geometry={geometry}>
-      <pointsMaterial size={0.1} sizeAttenuation color="#cfe0ff" transparent opacity={0.85} depthWrite={false} blending={THREE.AdditiveBlending} />
-    </points>
+    <>
+      <points geometry={dense}>
+        <pointsMaterial size={0.085} sizeAttenuation vertexColors transparent opacity={0.9} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
+      </points>
+      <points geometry={bright}>
+        <pointsMaterial size={0.32} sizeAttenuation vertexColors transparent opacity={0.95} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
+      </points>
+    </>
+  );
+}
+
+// 小惑星帯（InstancedMesh・静的行列＋親グループを回転＝安価）
+function AsteroidBelt() {
+  const count = MOBILE ? 130 : 320;
+  const grp = useRef<THREE.Group>(null);
+  const inst = useRef<THREE.InstancedMesh>(null);
+  useEffect(() => {
+    if (!inst.current) return;
+    const dummy = new THREE.Object3D();
+    for (let i = 0; i < count; i++) {
+      const ang = Math.random() * Math.PI * 2, rad = 6 + Math.random() * 8;
+      dummy.position.set(Math.cos(ang) * rad, (Math.random() - 0.5) * 1.4, Math.sin(ang) * rad);
+      dummy.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
+      dummy.scale.setScalar(0.04 + Math.random() * 0.12);
+      dummy.updateMatrix();
+      inst.current.setMatrixAt(i, dummy.matrix);
+    }
+    inst.current.instanceMatrix.needsUpdate = true;
+  }, [count]);
+  useFrame((_, d) => { if (grp.current) grp.current.rotation.y += d * 0.03; });
+  return (
+    <group ref={grp} position={[-9.5, -1, -15]} rotation={[0.34, 0, 0.08]}>
+      <instancedMesh ref={inst} args={[undefined, undefined, count]}>
+        <dodecahedronGeometry args={[1, 0]} />
+        <meshStandardMaterial color="#8a7d6b" roughness={1} metalness={0} flatShading />
+      </instancedMesh>
+    </group>
+  );
+}
+
+// 遠方の太陽（光源の視覚化・グロー）
+function Sun() {
+  return (
+    <group position={[24, 8, 16]}>
+      <mesh>
+        <sphereGeometry args={[1.1, 24, 24]} />
+        <meshBasicMaterial color="#fff3d8" fog={false} />
+      </mesh>
+      <mesh>
+        <sphereGeometry args={[3, 20, 20]} />
+        <meshBasicMaterial color="#ffd98a" transparent opacity={0.16} blending={THREE.AdditiveBlending} depthWrite={false} fog={false} />
+      </mesh>
+      <mesh>
+        <sphereGeometry args={[6.5, 20, 20]} />
+        <meshBasicMaterial color="#ffba52" transparent opacity={0.05} blending={THREE.AdditiveBlending} depthWrite={false} fog={false} />
+      </mesh>
+    </group>
   );
 }
 
@@ -315,12 +379,12 @@ function Galaxy() {
 // ── camera stops（各セクション＝各惑星）。DOMセクション位置で補間（セクション数に非依存） ──
 const STOPS: { sel: string; p: [number, number, number]; l: [number, number, number] }[] = [
   { sel: "header.hero", p: [0, 0.2, 3.6], l: [2.15, -1.75, 0] }, // 地球
-  { sel: "#services", p: [-1.4, 2.1, -1.2], l: [-2.6, 1.3, -4.2] }, // 月
-  { sel: "#works", p: [-4.4, -1.0, -5.0], l: [-5.6, -1.8, -8.4] }, // 火星
-  { sel: "#strengths", p: [-6.6, 4.0, -7.6], l: [-8.6, 3.2, -12.8] }, // 木星
-  { sel: "#pricing", p: [-8.4, -0.6, -11.4], l: [-10.6, -1.4, -16.8] }, // 土星
-  { sel: "#faq", p: [-10.6, 5.2, -15.0], l: [-12.2, 4.6, -19.8] }, // 海王星
-  { sel: "#contact", p: [GX + 1.5, GY + 4, GZ + 10], l: [GX, GY, GZ] }, // 銀河
+  { sel: "#services", p: [-1.6, 2.4, -1.0], l: [-3, 1.8, -5.5] }, // 月
+  { sel: "#works", p: [-5.4, -1.6, -5.5], l: [-7.5, -2.6, -11.5] }, // 火星
+  { sel: "#strengths", p: [-8.8, 5.4, -9.5], l: [-11.5, 4.2, -18.5] }, // 木星
+  { sel: "#pricing", p: [-12.8, -0.6, -18], l: [-15.5, -2, -26] }, // 土星
+  { sel: "#faq", p: [-16.4, 6.8, -25], l: [-19, 5.6, -33] }, // 海王星
+  { sel: "#contact", p: [GX + 2.5, GY + 4, GZ + 12], l: [GX, GY, GZ] }, // 銀河
 ];
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
@@ -375,11 +439,14 @@ function Rig() {
   return (
     <>
       <AdaptiveQuality />
+      <fog attach="fog" args={["#0a0c1a", 18, 62]} />
       <ambientLight intensity={0.11} />
-      <directionalLight position={[6, 3, 5]} intensity={3.0} color="#fff4e6" />
-      <directionalLight position={[-8, 2, -10]} intensity={0.55} color="#7da6ff" />
+      <directionalLight position={[24, 8, 16]} intensity={3.0} color="#fff4e6" />
+      <directionalLight position={[-8, 2, -10]} intensity={0.5} color="#7da6ff" />
       <Nebula />
       <Stars />
+      <Sun />
+      <AsteroidBelt />
       <Galaxy />
       <Suspense fallback={null}>
         <Earth />
