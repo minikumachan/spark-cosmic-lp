@@ -3,12 +3,13 @@ import Container from "../ui/Container.astro";
 
 interface Props {
   id?: string;
+  index?: string;
   eyebrow?: string;
   title?: string;
   lead?: string;
   class?: string;
 }
-const { id, eyebrow, title, lead, class: cls = "" } = Astro.props;
+const { id, index, eyebrow, title, lead, class: cls = "" } = Astro.props;
 const hasHeader = Boolean(eyebrow || title || lead);
 ---
 
@@ -16,16 +17,32 @@ const hasHeader = Boolean(eyebrow || title || lead);
   <Container>
     {
       hasHeader && (
-        <header class="reveal mb-14 max-w-2xl">
-          {eyebrow && (
-            <p class="font-mono text-sm uppercase tracking-[0.2em] text-ink">{eyebrow}</p>
-          )}
-          {title && (
-            <h2 class="mt-3 font-display text-4xl font-bold tracking-tight sm:text-5xl">
-              {title}
-            </h2>
-          )}
-          {lead && <p class="mt-4 font-body text-lg text-muted">{lead}</p>}
+        <header class="reveal mb-16 border-t border-hairline pt-10">
+          <div class="grid gap-x-8 gap-y-6 lg:grid-cols-12 lg:items-end">
+            <div class="lg:col-span-8">
+              {eyebrow && (
+                <p class="font-mono text-xs uppercase tracking-[0.3em] text-ink">{eyebrow}</p>
+              )}
+              {title && (
+                <h2 class="mt-4 flex items-start gap-4 font-display text-headline font-bold text-text sm:gap-6">
+                  {index && (
+                    <span
+                      aria-hidden="true"
+                      class="text-index font-extralight leading-[0.8] tracking-tight text-text/50 tabular-nums"
+                    >
+                      {index}
+                    </span>
+                  )}
+                  <span>{title}</span>
+                </h2>
+              )}
+            </div>
+            {lead && (
+              <p class="font-body text-base leading-[1.85] text-muted lg:col-span-4 lg:pb-3">
+                {lead}
+              </p>
+            )}
+          </div>
         </header>
       )
     }

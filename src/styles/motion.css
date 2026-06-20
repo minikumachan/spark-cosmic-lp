@@ -59,3 +59,67 @@
     }
   }
 }
+
+/* ── Editorial Kinetic：アンダーライン / マーキー（基本構造は常時） ── */
+.link-underline {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-size: 0% 1px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  padding-bottom: 3px;
+  transition: background-size 0.3s var(--ease-quint);
+}
+.link-underline:hover {
+  background-size: 100% 1px;
+}
+
+.marquee {
+  overflow: hidden;
+  white-space: nowrap;
+}
+.marquee__track {
+  display: inline-flex;
+  align-items: center;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Hero 見出しの行ごとワイプ＋ライズ */
+  @keyframes line-rise {
+    from {
+      opacity: 0;
+      transform: translateY(0.34em);
+      clip-path: inset(0 0 100% 0);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+      clip-path: inset(0 0 -8% 0);
+    }
+  }
+  .reveal-line {
+    animation: line-rise 0.85s var(--ease-editorial) both;
+  }
+  .kinetic-head .reveal-line:nth-of-type(1) {
+    animation-delay: 0.14s;
+  }
+  .kinetic-head .reveal-line:nth-of-type(2) {
+    animation-delay: 0.26s;
+  }
+
+  /* キネティック・マーキー：2連トラックで継ぎ目なくループ */
+  @keyframes marquee-x {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+  .marquee__track {
+    animation: marquee-x 32s linear infinite;
+  }
+  .marquee:hover .marquee__track {
+    animation-play-state: paused;
+  }
+}

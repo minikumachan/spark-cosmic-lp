@@ -21,3 +21,6 @@ scripts/_charset.txt
 
 # OG生成の中間ファイル（make_og.mjs が再生成。成果物 public/assets/og/ は追跡）
 scripts/og/
+
+# 視覚確認用の使い捨てスクショスクリプト
+scripts/_shot.mjs

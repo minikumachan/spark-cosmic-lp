@@ -12,9 +12,10 @@ function Blob() {
     () => ({
       uTime: { value: 0 },
       uAmp: { value: 0.32 },
-      uColorA: { value: new THREE.Color("#0757ff") },
-      uColorB: { value: new THREE.Color("#854dff") },
-      uColorC: { value: new THREE.Color("#4db8ff") },
+      // editorial: 墨基調 → 電撃ブルー → 明るいフレネルリム（規律ある配色）
+      uColorA: { value: new THREE.Color("#16161c") },
+      uColorB: { value: new THREE.Color("#0747e0") },
+      uColorC: { value: new THREE.Color("#6db8ff") },
     }),
     [],
   );

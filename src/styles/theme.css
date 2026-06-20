@@ -1,26 +1,27 @@
 @import "tailwindcss";
 
 /* ───────────────────────────────────────────────────────────
-   semantic color tokens — data-theme で light/dark を切替
-   （tokens/design_tokens.json を正本に転記。ハードコード禁止）
+   Editorial Kinetic — semantic color tokens（data-theme で light/dark）
+   規律ある配色: 温かみのある紙(paper)×墨(ink)を主役にし、
+   電撃ブルーを唯一の主アクセントとして"点"で効かせる。
    ─────────────────────────────────────────────────────────── */
 @layer base {
   :root {
-    --bg: #ffffff;
-    --surface: #f7f9fc;
-    --text: #0b1230;
-    --muted: #68708a;
-    /* 小さなテキスト用アクセント（AA担保）。light=blue(5.5:1 on white) */
+    --bg: #fbfaf7;        /* warm paper */
+    --surface: #ffffff;   /* 紙から持ち上がる白カード */
+    --text: #14141a;      /* near-black ink（16:1 on paper） */
+    --muted: #5e5b54;     /* warm gray（≈5.5:1 AA） */
+    /* 唯一の主アクセント。blue on paper ≈ 5.4:1（AA） */
     --accent-ink: #0757ff;
-    --danger: #c2261b;
+    --danger: #b3261e;
   }
   :root[data-theme="dark"] {
-    --bg: #0b1230;
-    --surface: #131a3a;
-    --text: #f5f7fb;
-    --muted: #9aa3c0;
-    /* dark は濃紺背景でblueが沈むため明るいcyanに（8:1 on navy） */
-    --accent-ink: #4db8ff;
+    --bg: #0e0e12;        /* editorial near-black */
+    --surface: #17171d;
+    --text: #f4f2ec;      /* warm paper ink */
+    --muted: #9b978e;
+    /* near-black 背景で electric blue（≈7:1） */
+    --accent-ink: #5ba8ff;
     --danger: #ff9b9b;
   }
   html,
@@ -46,8 +47,10 @@
   --color-muted: var(--muted);
   --color-ink: var(--accent-ink);
   --color-danger: var(--danger);
+  /* editorial ヘアライン罫（text に追従。border-hairline / bg-hairline） */
+  --color-hairline: color-mix(in srgb, var(--text) 14%, transparent);
 
-  /* accent（両テーマ共通・CTA/アイコン/装飾に限定） */
+  /* accent（規律: blue=主アクセント / magenta=稀な句読点。他は装飾を控える） */
   --color-blue: #0757ff;
   --color-cyan: #4db8ff;
   --color-magenta: #ff2f8f;
@@ -59,23 +62,34 @@
   --color-lavender: #c9c4ff;
   --color-light-blue: #d8e9ff;
 
-  /* radius */
-  --radius-card: 24px;
+  /* editorial type scale（特大ディスプレイ／非対称見出し／index番号）
+     Tailwind v4: --text-* で text-{name} ユーティリティ＋line-height/tracking を生成 */
+  --text-hero: clamp(2.75rem, 8.5vw, 7rem);
+  --text-hero--line-height: 0.94;
+  --text-hero--letter-spacing: -0.035em;
+  --text-headline: clamp(2.25rem, 5.5vw, 4.5rem);
+  --text-headline--line-height: 0.98;
+  --text-headline--letter-spacing: -0.025em;
+  --text-index: clamp(2.5rem, 6vw, 5.5rem);
+  --text-index--line-height: 1;
+
+  /* radius（editorial: カードは控えめ・画像は大きく） */
+  --radius-card: 20px;
   --radius-button: 999px;
-  --radius-image: 32px;
+  --radius-image: 28px;
 
-  /* shadow */
-  --shadow-card: 0 18px 45px rgba(11, 18, 48, 0.08);
-  --shadow-floating: 0 24px 70px rgba(7, 87, 255, 0.18);
+  /* shadow（ink-tinted。editorial は影より罫で構造を出す） */
+  --shadow-card: 0 18px 45px rgba(20, 20, 26, 0.07);
+  --shadow-floating: 0 24px 70px rgba(7, 87, 255, 0.20);
 
-  /* font families（@font-face は P0-2 で定義）
-     display は Latin=Clash Display / JP=Zen Kaku Gothic New をグリフ単位で使い分ける。
-     （JP見出しを system-ui に落とすとデバイス間で不統一になるため Zen Kaku を明示） */
+  /* font families（@font-face は fonts.css）
+     display は Latin=Clash Display / JP=Zen Kaku Gothic New をグリフ単位で使い分ける。 */
   --font-display: "Clash Display", "Zen Kaku Gothic New", system-ui, sans-serif;
   --font-body: "Zen Kaku Gothic New", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "Zen Kaku Gothic New", ui-monospace, monospace;
 
-  /* motion easing（quint=減速リビール / spring=押下の弾性フィードバック） */
+  /* motion easing（quint=減速リビール / spring=押下の弾性 / editorial=滑らかな入場） */
   --ease-quint: cubic-bezier(0.22, 1, 0.36, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-editorial: cubic-bezier(0.16, 1, 0.3, 1);
 }

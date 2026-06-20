@@ -1,0 +1,21 @@
+---
+// キネティック・マーキー帯（装飾・aria-hidden）。2連で継ぎ目なくループ、低モーションで静止。
+interface Props {
+  items?: string[];
+}
+const { items = [] } = Astro.props;
+const seq = [...items, ...items];
+---
+
+<div class="marquee select-none border-y border-hairline py-7" aria-hidden="true">
+  <div class="marquee__track">
+    {
+      seq.map((t) => (
+        <span class="inline-flex items-center gap-10 pr-10 font-display text-2xl font-extralight tracking-tight text-text/65 sm:text-3xl">
+          {t}
+          <span class="inline-block h-1.5 w-1.5 rounded-full bg-ink" />
+        </span>
+      ))
+    }
+  </div>
+</div>

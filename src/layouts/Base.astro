@@ -30,8 +30,8 @@ const meta = buildMeta({ title, description, image, canonical });
     <meta name="twitter:card" content="summary_large_image" />
 
     <!-- above-the-fold で実際に使うフォントのみ preload（各サブセット済 ~75KB）。
-         Hero h1 は日本語なので LCP フォントは ZenKaku-700。Latin見出し/数値が Clash-700。 -->
-    <link rel="preload" href="/fonts/ZenKakuGothicNew-700.woff2" as="font" type="font/woff2" crossorigin />
+         Hero h1 は Zen Kaku 900（editorial 特大見出し＝LCP）。本文 400／Latin数値 Clash-700。 -->
+    <link rel="preload" href="/fonts/ZenKakuGothicNew-900.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/ZenKakuGothicNew-400.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/ClashDisplay-700.woff2" as="font" type="font/woff2" crossorigin />
 

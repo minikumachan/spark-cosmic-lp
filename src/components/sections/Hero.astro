@@ -2,83 +2,90 @@
 import Container from "../ui/Container.astro";
 import Hero3D from "../three/Hero3D.tsx";
 import { site } from "../../lib/content";
-import { assetShape } from "../../lib/assets";
 const { hero } = site;
 ---
 
-<section class="relative overflow-hidden pb-20 pt-32 sm:pb-28 sm:pt-40">
-  <div class="hero-mesh pointer-events-none absolute inset-0 -z-10" aria-hidden="true"></div>
-  <img
-    src={assetShape("shape_blob_gradient_blue")}
-    alt=""
-    aria-hidden="true"
-    class="parallax-slow pointer-events-none absolute -right-24 -top-10 -z-10 w-[36rem] max-w-none opacity-70 blur-[1px]"
-  />
+<section class="relative overflow-hidden pb-24 pt-36 sm:pb-32 sm:pt-44">
+  <!-- editorial: 紙の上の極薄ブルーミング1つだけ（規律） -->
+  <div class="hero-bloom pointer-events-none absolute inset-0 -z-10" aria-hidden="true"></div>
 
   <Container>
-    <div class="grid items-center gap-12 lg:grid-cols-[1.1fr_0.9fr]">
-      <div class="load-in">
-        <p class="font-mono text-sm uppercase tracking-[0.25em] text-ink">{hero.eyebrow}</p>
+    <!-- eyebrow：罫＋mono trackedラベル -->
+    <div class="reveal-line flex items-center gap-4">
+      <span class="h-px w-12 bg-text/35"></span>
+      <p class="font-mono text-xs uppercase tracking-[0.4em] text-muted">{hero.eyebrow}</p>
+    </div>
 
-        <h1 class="mt-5 font-display text-5xl font-bold leading-[1.04] tracking-tight sm:text-7xl">
-          {hero.title[0]}<br /><span class="text-ink">{hero.title[1]}</span>
+    <div class="mt-10 grid items-start gap-x-8 gap-y-12 lg:grid-cols-12">
+      <!-- 特大見出し（Zen Kaku 900 / 非対称 col-span-7） -->
+      <div class="kinetic-head lg:col-span-7 lg:pt-6">
+        <h1 class="font-display text-hero font-black text-text">
+          <span class="reveal-line">{hero.title[0]}</span><br />
+          <span class="reveal-line text-ink">{hero.title[1]}</span>
         </h1>
-
-        <p class="mt-7 max-w-xl font-body text-lg text-muted sm:text-xl">{hero.lead}</p>
-
-        <div class="mt-10 flex flex-wrap items-center gap-4">
-          <a
-            href={hero.primary.href}
-            class="rounded-button bg-blue px-7 py-3.5 font-body font-bold text-white shadow-floating transition-transform duration-200 ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] motion-reduce:transform-none"
-          >
-            {hero.primary.label}
-          </a>
-          <a
-            href={hero.secondary.href}
-            class="rounded-button px-7 py-3.5 font-body font-medium text-text ring-1 ring-text/15 transition-[background-color,transform] duration-200 ease-spring hover:-translate-y-0.5 hover:bg-surface active:translate-y-0 active:scale-[0.98] motion-reduce:transform-none"
-          >
-            {hero.secondary.label}
-          </a>
-        </div>
-
-        <dl class="mt-14 flex flex-wrap gap-x-10 gap-y-4">
-          {
-            hero.stats.map((s) => (
-              <div>
-                <dt class="font-display text-3xl font-bold sm:text-4xl">{s.value}</dt>
-                <dd class="font-body text-sm text-muted">{s.label}</dd>
-              </div>
-            ))
-          }
-        </dl>
       </div>
 
-      <div class="relative hidden lg:block" aria-hidden="true">
-        <div class="hero-visual relative aspect-square w-full overflow-hidden rounded-[2rem]">
+      <!-- 3D：右へオフセット・上に食い込む（オーバーラップ） -->
+      <div class="relative lg:col-span-5 lg:-mt-16" aria-hidden="true">
+        <div
+          class="hero-visual relative ml-auto aspect-square w-full max-w-[30rem] overflow-hidden rounded-[2rem] lg:mr-[-3rem]"
+        >
           <Hero3D client:visible />
         </div>
-        <img
-          src={assetShape("shape_squiggle_purple")}
-          alt=""
-          class="pointer-events-none absolute -bottom-8 -left-8 w-32 opacity-80"
-        />
       </div>
+    </div>
+
+    <!-- 編集的メタ行：罫で仕切る lead / CTA / stats -->
+    <div
+      class="reveal mt-16 grid gap-x-8 gap-y-10 border-t border-hairline pt-10 lg:grid-cols-12 lg:items-end"
+    >
+      <p class="font-body text-lg leading-[1.85] text-muted lg:col-span-5">
+        {hero.lead}
+      </p>
+
+      <div class="flex flex-wrap items-center gap-x-8 gap-y-4 lg:col-span-4">
+        <a
+          href={hero.primary.href}
+          class="rounded-button bg-blue px-7 py-3.5 font-body font-bold text-white shadow-floating transition-transform duration-200 ease-spring hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.97] motion-reduce:transform-none"
+        >
+          {hero.primary.label}
+        </a>
+        <a href={hero.secondary.href} class="link-underline font-body font-medium text-text">
+          {hero.secondary.label} <span aria-hidden="true">→</span>
+        </a>
+      </div>
+
+      <dl class="flex divide-x divide-hairline lg:col-span-3 lg:justify-end">
+        {
+          hero.stats.map((s) => (
+            <div class="px-5 first:pl-0 last:pr-0">
+              <dt class="font-display text-3xl font-bold leading-none text-text sm:text-4xl">
+                {s.value}
+              </dt>
+              <dd class="mt-2 font-mono text-[0.65rem] uppercase tracking-[0.18em] text-muted">
+                {s.label}
+              </dd>
+            </div>
+          ))
+        }
+      </dl>
     </div>
   </Container>
 </section>
 
 <style>
-  .hero-mesh {
+  /* 紙の上の唯一のブルーミング（editorial 規律: 多色メッシュを廃し電撃ブルー1点） */
+  .hero-bloom {
     background:
-      radial-gradient(ellipse 60% 50% at 78% 18%, color-mix(in srgb, var(--color-blue) 18%, transparent), transparent 60%),
-      radial-gradient(ellipse 50% 60% at 12% 32%, color-mix(in srgb, var(--color-magenta) 12%, transparent), transparent 55%),
-      radial-gradient(ellipse 70% 55% at 60% 95%, color-mix(in srgb, var(--color-lime) 10%, transparent), transparent 60%);
+      radial-gradient(ellipse 48% 42% at 82% 12%, color-mix(in srgb, var(--color-blue) 16%, transparent), transparent 62%),
+      radial-gradient(ellipse 40% 50% at 6% 8%, color-mix(in srgb, var(--color-magenta) 7%, transparent), transparent 60%);
   }
+  /* editorial フォールバック: 墨基調＋電撃ブルー（3Dと同調） */
   .hero-visual {
     background:
-      radial-gradient(circle at 32% 28%, color-mix(in srgb, var(--color-cyan) 85%, white), transparent 55%),
-      radial-gradient(circle at 70% 75%, color-mix(in srgb, var(--color-purple) 75%, transparent), transparent 60%),
-      color-mix(in srgb, var(--color-blue) 88%, black);
+      radial-gradient(circle at 32% 26%, color-mix(in srgb, var(--color-cyan) 60%, white), transparent 50%),
+      radial-gradient(circle at 74% 80%, color-mix(in srgb, var(--color-blue) 70%, black), transparent 62%),
+      color-mix(in srgb, var(--text) 78%, var(--color-blue));
     box-shadow: var(--shadow-floating);
   }
 </style>
