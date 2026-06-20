@@ -1,0 +1,127 @@
+---
+import "../styles/fonts.css";
+interface Props {
+  title: string;
+  label: string;
+}
+const { title, label } = Astro.props;
+---
+
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>{title} — spark proto</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        background: #05060d;
+        color: #f4f2ec;
+        font-family: "Zen Kaku Gothic New", system-ui, sans-serif;
+        overflow: hidden;
+      }
+      .stage {
+        position: fixed;
+        inset: 0;
+        z-index: 2;
+      }
+      .fallback {
+        position: fixed;
+        inset: 0;
+        z-index: 1;
+        background:
+          radial-gradient(ellipse 60% 50% at 72% 26%, rgba(86, 96, 230, 0.28), transparent 60%),
+          radial-gradient(ellipse 50% 55% at 22% 82%, rgba(190, 44, 150, 0.18), transparent 55%),
+          radial-gradient(circle at 50% 50%, #0a0c1c, #05060d 70%);
+      }
+      .overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 10;
+        pointer-events: none;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: clamp(1.5rem, 4vw, 3.5rem);
+      }
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .eyebrow {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.72rem;
+        letter-spacing: 0.4em;
+        text-transform: uppercase;
+        color: #9db4ff;
+      }
+      .nav {
+        pointer-events: auto;
+        display: flex;
+        gap: 1.1rem;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.72rem;
+      }
+      .nav a {
+        color: #9db4ff;
+        text-decoration: none;
+        opacity: 0.55;
+        transition: opacity 0.2s;
+      }
+      .nav a:hover,
+      .nav a[aria-current="page"] {
+        opacity: 1;
+      }
+      .headline {
+        font-family: "Clash Display", "Zen Kaku Gothic New", sans-serif;
+        font-weight: 900;
+        font-size: clamp(2.4rem, 7.5vw, 6rem);
+        line-height: 0.96;
+        letter-spacing: -0.03em;
+        max-width: 16ch;
+        text-shadow: 0 2px 60px rgba(0, 0, 0, 0.7);
+      }
+      .accent {
+        color: #7fb2ff;
+      }
+      .label {
+        margin-top: 1.4rem;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.7rem;
+        letter-spacing: 0.08em;
+        color: #8a90b8;
+        max-width: 52ch;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="fallback" aria-hidden="true"></div>
+    <div class="stage"><slot /></div>
+    <div class="overlay">
+      <div class="topbar">
+        <p class="eyebrow">Creative Studio</p>
+        <nav class="nav" aria-label="prototypes">
+          <a href="/proto/galaxy">galaxy</a>
+          <a href="/proto/celestial">celestial</a>
+          <a href="/proto/light">light</a>
+        </nav>
+      </div>
+      <div>
+        <h1 class="headline">ブランドも、体験も、<br /><span class="accent">次のステージへ。</span></h1>
+        <p class="label">{label}</p>
+      </div>
+    </div>
+  </body>
+</html>

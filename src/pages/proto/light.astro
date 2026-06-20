@@ -1,0 +1,11 @@
+---
+import Proto from "../../layouts/Proto.astro";
+import LightCosmosScene from "../../components/three/proto/LightCosmosScene.tsx";
+---
+
+<Proto
+  title="Light"
+  label="C · 軽量・本気 — フルスクリーン1パスシェーダ(fbm星雲＋procedural星)・ジオメトリ最小・ポストエフェクト無し ／ perf 95+ 目標"
+>
+  <LightCosmosScene client:only="react" />
+</Proto>
