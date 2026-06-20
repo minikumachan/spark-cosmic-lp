@@ -6,7 +6,7 @@ export interface MetaInput {
 }
 
 const SITE_NAME = "spark";
-const ORIGIN = "https://spark.example.com";
+const ORIGIN = "https://spark-lp.pages.dev";
 
 /** ページ共通のメタ情報を組み立てる（title はサイト名を付与） */
 export function buildMeta(input: MetaInput) {

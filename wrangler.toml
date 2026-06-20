@@ -2,7 +2,7 @@
 # 静的サイト本体＝dist/ ・ サーバ処理＝functions/（onRequestPost を自動バンドル）。
 # CSP等のヘッダは dist/_headers（astro build の securityHeaders インテグが自動生成）が適用される。
 name = "spark-lp"
-compatibility_date = "2026-06-20"
+compatibility_date = "2026-06-19"
 pages_build_output_dir = "./dist"
 
 # contact.ts は fetch / URLSearchParams / Request・Response / JSON のみ使用（Web標準）。

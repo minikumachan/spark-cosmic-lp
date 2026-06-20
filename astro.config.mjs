@@ -68,7 +68,7 @@ function securityHeaders() {
 }
 
 export default defineConfig({
-  site: 'https://spark.example.com',
+  site: 'https://spark-lp.pages.dev',
   integrations: [react(), sitemap(), securityHeaders()],
   vite: {
     plugins: [
