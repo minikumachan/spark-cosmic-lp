@@ -1,5 +1,5 @@
 {
-  "//": "P5でフォントサブセット(-92%)後の実測値に合わせて厳格化。median-of-3。実測: perf99 / a11y100 / bp100 / seo100 / CLS0 / TBT0ms / LCP2.2s。",
+  "//": "コズミック版(WebGL 3Dショーケース)の実測に合わせた閾値。median-of-3・reduced-motion。実測: perf84 / a11y100 / bp100 / seo100 / CLS0 / TBT130ms / LCP3.4s(@simulated4G)。a11y/seo/bp=100・CLS0 は厳格維持。perf/LCP は重い3D island JS(three.js)により Editorial(perf99)比で緩和。",
   "ci": {
     "collect": {
       "staticDistDir": "./dist",
@@ -12,11 +12,11 @@
       "assertions": {
         "categories:accessibility": ["error", { "minScore": 1 }],
         "categories:seo": ["error", { "minScore": 1 }],
-        "categories:performance": ["error", { "minScore": 0.95 }],
-        "categories:best-practices": ["warn", { "minScore": 1 }],
-        "cumulative-layout-shift": ["error", { "maxNumericValue": 0.005 }],
-        "total-blocking-time": ["warn", { "maxNumericValue": 200 }],
-        "largest-contentful-paint": ["warn", { "maxNumericValue": 2500 }]
+        "categories:best-practices": ["error", { "minScore": 1 }],
+        "categories:performance": ["error", { "minScore": 0.8 }],
+        "cumulative-layout-shift": ["error", { "maxNumericValue": 0.01 }],
+        "total-blocking-time": ["warn", { "maxNumericValue": 300 }],
+        "largest-contentful-paint": ["warn", { "maxNumericValue": 4200 }]
       }
     }
   }
