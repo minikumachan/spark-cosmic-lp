@@ -292,7 +292,7 @@ const PV_CSS = `
 .vinfo{animation:vinfoIn .5s cubic-bezier(.16,1,.3,1) both}
 
 .pv-top{position:absolute;top:0;left:0;right:0;z-index:2;display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;
-  padding:max(.9rem,env(safe-area-inset-top)) max(.9rem,env(safe-area-inset-right)) .9rem max(.9rem,env(safe-area-inset-left));
+  padding:max(.9rem,env(safe-area-inset-top, 0px)) max(.9rem,env(safe-area-inset-right, 0px)) .9rem max(.9rem,env(safe-area-inset-left, 0px));
   background:linear-gradient(to bottom,rgba(4,5,11,.92),rgba(4,5,11,.45) 60%,transparent);pointer-events:none}
 .pv-title{pointer-events:none;min-width:0}
 .pv-en{font-family:"JetBrains Mono",monospace;font-size:.66rem;letter-spacing:.2em;text-transform:uppercase;color:#7fb2ff;margin:0}
@@ -305,7 +305,7 @@ const PV_CSS = `
 .pv-close:active{transform:scale(.92)}
 
 .pv-bottom{position:absolute;left:0;right:0;bottom:0;z-index:2;display:flex;flex-direction:column;gap:.7rem;
-  padding:1.1rem max(.6rem,env(safe-area-inset-right)) max(.9rem,env(safe-area-inset-bottom)) max(.6rem,env(safe-area-inset-left));
+  padding:1.1rem max(.6rem,env(safe-area-inset-right, 0px)) max(.9rem,env(safe-area-inset-bottom, 0px)) max(.6rem,env(safe-area-inset-left, 0px));
   background:linear-gradient(to top,rgba(4,5,11,.94),rgba(4,5,11,.5) 60%,transparent);pointer-events:none}
 .pv-facts{margin:0;display:flex;gap:.7rem 1.3rem;overflow-x:auto;pointer-events:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .pv-facts::-webkit-scrollbar{display:none}

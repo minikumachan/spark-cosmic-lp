@@ -34,6 +34,7 @@ const works = defineCollection({
     accent,
     alt: z.string(),
     tags: z.array(z.string()),
+    desc: z.string(),
   }),
 });
 
