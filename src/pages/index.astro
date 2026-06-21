@@ -81,12 +81,19 @@ const ACC: Record<string, string> = {
       }
       html {
         scroll-behavior: smooth;
+        overflow-x: clip;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
       }
       body {
         background: #05060d;
         color: #eef1ff;
         font-family: "Zen Kaku Gothic New", system-ui, sans-serif;
-        overflow-x: hidden;
+        overflow-x: clip;
+        max-width: 100%;
       }
       /* 永続コズミック背景（固定）。CSS フォールバックも兼ねる */
       .cosmic-bg {
@@ -222,7 +229,7 @@ const ACC: Record<string, string> = {
 
       /* ── HERO ── */
       .hero {
-        min-height: 100vh;
+        min-height: 100vh; min-height: 100dvh;
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -418,7 +425,7 @@ const ACC: Record<string, string> = {
 
       /* ── strengths（特大数値・カード脱却グリッド） ── */
       .strengths {
-        min-height: 100vh;
+        min-height: 100vh; min-height: 100dvh;
       }
       .metrics {
         display: grid;
@@ -730,9 +737,14 @@ const ACC: Record<string, string> = {
       }
       .cform .hp {
         position: absolute;
-        left: -9999px;
         width: 1px;
         height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
       }
       .cform .btn {
         margin-top: 0.4rem;
@@ -771,7 +783,7 @@ const ACC: Record<string, string> = {
 
       /* ── contact ── */
       .contact {
-        min-height: 90vh;
+        min-height: 90vh; min-height: 90dvh;
         display: flex;
         flex-direction: column;
         justify-content: center;

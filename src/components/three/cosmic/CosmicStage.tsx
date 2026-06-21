@@ -876,6 +876,7 @@ function useScrollPast(frac: number) {
 function Rig() {
   const centers = useRef<number[]>([]);
   const scrollY = useRef(0);
+  const smoothScroll = useRef(0); // スクロール入力の平滑化値（離散ホイールを滑らかに）
   const showGalaxy = useScrollPast(0.32); // 銀河は終盤接近時のみ（中盤までは遠方で不可視）
   useEffect(() => {
     const measure = () => {
@@ -888,6 +889,7 @@ function Rig() {
     };
     const onScroll = () => { scrollY.current = window.scrollY; };
     measure(); onScroll();
+    smoothScroll.current = window.scrollY; // 初期化（ロード時に0からアニメしない）
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", measure);
     const tid = window.setTimeout(measure, 700);
@@ -899,10 +901,14 @@ function Rig() {
   }, []);
   const target = useMemo(() => new THREE.Vector3(...STOPS[0].p), []);
   const look = useMemo(() => new THREE.Vector3(...STOPS[0].l), []);
+  const smoothLook = useRef(new THREE.Vector3(...STOPS[0].l));
   useFrame(({ clock, camera }, delta) => {
     const t = clock.elapsedTime;
     const c = centers.current;
-    const probe = scrollY.current + window.innerHeight / 2;
+    const d = Math.min(delta, 0.05); // 大きなフレーム飛びでも破綻しないようクランプ
+    // スクロール入力をフレームレート非依存で平滑化（離散的なホイールジャンプも滑らかに）
+    smoothScroll.current += (scrollY.current - smoothScroll.current) * (1 - Math.exp(-7.5 * d));
+    const probe = smoothScroll.current + window.innerHeight / 2;
     let i = 0;
     if (c.length === STOPS.length) {
       while (i < STOPS.length - 2 && Number.isFinite(c[i + 1]) && probe > c[i + 1]) i++;
@@ -910,7 +916,7 @@ function Rig() {
     const c0 = c[i], c1 = c[i + 1];
     let f = Number.isFinite(c0) && Number.isFinite(c1) && c1 > c0 ? (probe - c0) / (c1 - c0) : 0;
     f = Math.min(Math.max(f, 0), 1);
-    f = f * f * (3 - 2 * f);
+    f = f * f * (3 - 2 * f); // smoothstep（区間内をなめらかに）
     const w0 = STOPS[i], w1 = STOPS[i + 1] ?? STOPS[i];
     target.set(
       lerp(w0.p[0], w1.p[0], f) + Math.sin(t * 0.06) * 0.22,
@@ -918,9 +924,11 @@ function Rig() {
       lerp(w0.p[2], w1.p[2], f),
     );
     look.set(lerp(w0.l[0], w1.l[0], f), lerp(w0.l[1], w1.l[1], f), lerp(w0.l[2], w1.l[2], f));
-    const k = 1 - Math.exp(-5 * delta);
+    // 位置・注視点とも追従lerp（スクロール平滑化と二段で滑らかさ＋僅かな遅延＝快適）
+    const k = 1 - Math.exp(-9 * d);
     camera.position.lerp(target, k);
-    camera.lookAt(look);
+    smoothLook.current.lerp(look, k);
+    camera.lookAt(smoothLook.current);
   });
   return (
     <>
