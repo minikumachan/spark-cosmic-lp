@@ -82,12 +82,22 @@ const ACC: Record<string, string> = {
         z-index: 1;
         text-shadow: 0 1px 20px rgba(0, 0, 0, 0.6);
       }
-      /* 惑星鑑賞モード 起動ボタン */
-      .viewer-fab {
+      /* 右下FAB群 */
+      .fab-group {
         position: fixed;
         right: clamp(1rem, 3vw, 2.2rem);
         bottom: clamp(1rem, 3vw, 2.2rem);
         z-index: 50;
+        display: flex;
+        flex-direction: column;
+        gap: 0.6rem;
+        align-items: flex-end;
+      }
+      #audio-toggle[aria-pressed="true"] {
+        border-color: rgba(127, 178, 255, 0.7);
+        background: rgba(47, 107, 255, 0.4);
+      }
+      .viewer-fab {
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
@@ -740,10 +750,15 @@ const ACC: Record<string, string> = {
     <CosmicStage client:only="react" />
     <PlanetViewer client:idle />
 
-    <!-- 惑星鑑賞モードの起動 -->
-    <button id="viewer-open" class="viewer-fab" type="button" aria-label="惑星鑑賞モードを開く">
-      <span aria-hidden="true">✦</span> 惑星図鑑
-    </button>
+    <!-- 右下FAB群（宇宙の音・惑星図鑑） -->
+    <div class="fab-group">
+      <button id="audio-toggle" class="viewer-fab" type="button" aria-pressed="false" aria-label="宇宙の環境音を再生">
+        <span aria-hidden="true">♪</span> <span class="audio-label">宇宙の音</span>
+      </button>
+      <button id="viewer-open" class="viewer-fab" type="button" aria-label="惑星鑑賞モードを開く">
+        <span aria-hidden="true">✦</span> 惑星図鑑
+      </button>
+    </div>
 
     <div class="content">
       <!-- HERO -->
@@ -943,6 +958,58 @@ const ACC: Record<string, string> = {
       document.getElementById("viewer-open")?.addEventListener("click", () => {
         window.dispatchEvent(new CustomEvent("cosmic:open-viewer"));
       });
+
+      // 宇宙の環境音（Web Audio で合成・任意ON。ファイル不要・クリックで開始＝自動再生制約に適合）
+      const audioBtn = document.getElementById("audio-toggle");
+      if (audioBtn) {
+        let actx: AudioContext | null = null;
+        let master: GainNode | null = null;
+        let on = false;
+        const init = () => {
+          actx = new AudioContext();
+          master = actx.createGain();
+          master.gain.value = 0;
+          master.connect(actx.destination);
+          const filter = actx.createBiquadFilter();
+          filter.type = "lowpass";
+          filter.frequency.value = 520;
+          filter.Q.value = 3;
+          filter.connect(master);
+          [55, 82.4, 110, 164.8].forEach((f, i) => {
+            const o = actx!.createOscillator();
+            o.type = i % 2 ? "sine" : "triangle";
+            o.frequency.value = f;
+            const g = actx!.createGain();
+            g.gain.value = 0.1;
+            o.connect(g);
+            g.connect(filter);
+            o.start();
+            const lfo = actx!.createOscillator();
+            lfo.frequency.value = 0.05 + i * 0.02;
+            const lg = actx!.createGain();
+            lg.gain.value = 3;
+            lfo.connect(lg);
+            lg.connect(o.detune);
+            lfo.start();
+          });
+          const fl = actx.createOscillator();
+          fl.frequency.value = 0.03;
+          const fg = actx.createGain();
+          fg.gain.value = 240;
+          fl.connect(fg);
+          fg.connect(filter.frequency);
+          fl.start();
+        };
+        audioBtn.addEventListener("click", () => {
+          if (!actx) init();
+          if (actx!.state === "suspended") actx!.resume();
+          on = !on;
+          master!.gain.linearRampToValueAtTime(on ? 0.42 : 0, actx!.currentTime + 1.4);
+          audioBtn.setAttribute("aria-pressed", String(on));
+          const lbl = audioBtn.querySelector(".audio-label");
+          if (lbl) lbl.textContent = on ? "停止" : "宇宙の音";
+        });
+      }
 
       // 問い合わせフォーム（/api/contact は Cloudflare Pages Function。dev では未稼働＝本番で動作）
       const form = document.getElementById("contact-form") as HTMLFormElement | null;

@@ -64,6 +64,7 @@ void main(){ float f=pow(1.0-max(dot(vN,vView),0.0),2.8); gl_FragColor=vec4(uCol
 function Earth() {
   const earth = useRef<THREE.Mesh>(null);
   const clouds = useRef<THREE.Mesh>(null);
+  const shadow = useRef<THREE.Mesh>(null);
   const [day, normal, clud, lights] = useTexture([
     "/assets/planet/earth_day.webp",
     "/assets/planet/earth_normal.webp",
@@ -80,16 +81,21 @@ function Earth() {
   useFrame((_, d) => {
     if (earth.current) earth.current.rotation.y += d * 0.025;
     if (clouds.current) clouds.current.rotation.y += d * 0.034;
+    if (shadow.current && clouds.current) shadow.current.rotation.y = clouds.current.rotation.y - 0.05; // 雲影を反太陽側へオフセット
   });
   return (
     <group rotation={[0.33, 0, 0.1]} scale={2.0} position={[2.15, -1.75, 0]}>
       <mesh ref={earth}>
         <sphereGeometry args={[1, 96, 96]} />
-        <meshStandardMaterial map={day} normalMap={normal} normalScale={new THREE.Vector2(0.8, 0.8)} emissiveMap={lights} emissive={new THREE.Color("#ffd9a0")} emissiveIntensity={0.5} roughness={0.82} metalness={0.05} />
+        <meshStandardMaterial map={day} normalMap={normal} normalScale={new THREE.Vector2(0.8, 0.8)} emissiveMap={lights} emissive={new THREE.Color("#ffd9a0")} emissiveIntensity={0.55} roughness={0.82} metalness={0.05} />
       </mesh>
-      <mesh ref={clouds} scale={1.012}>
+      <mesh ref={shadow} scale={1.004}>
         <sphereGeometry args={[1, 64, 64]} />
-        <meshStandardMaterial map={clud} alphaMap={clud} transparent opacity={0.85} depthWrite={false} roughness={1} />
+        <meshStandardMaterial map={clud} alphaMap={clud} color="#000000" transparent opacity={0.32} depthWrite={false} roughness={1} />
+      </mesh>
+      <mesh ref={clouds} scale={1.013}>
+        <sphereGeometry args={[1, 64, 64]} />
+        <meshStandardMaterial map={clud} alphaMap={clud} transparent opacity={0.88} depthWrite={false} roughness={1} />
       </mesh>
       <mesh scale={1.03}>
         <sphereGeometry args={[1, 48, 48]} />
@@ -103,24 +109,24 @@ function Earth() {
 function SaturnRing() {
   const tex = useTexture("/assets/planet/saturn_ring.webp");
   const geo = useMemo(() => {
-    const g = new THREE.RingGeometry(1.35, 2.4, 128);
+    const g = new THREE.RingGeometry(1.32, 2.45, 256);
     const pos = g.attributes.position;
     const uv = g.attributes.uv;
     const v = new THREE.Vector3();
     for (let i = 0; i < pos.count; i++) {
       v.fromBufferAttribute(pos, i);
-      const r = (v.length() - 1.35) / (2.4 - 1.35);
+      const r = (v.length() - 1.32) / (2.45 - 1.32);
       uv.setXY(i, r, 0.5);
     }
     return g;
   }, []);
   useMemo(() => {
     tex.colorSpace = THREE.SRGBColorSpace;
-    tex.anisotropy = 8;
+    tex.anisotropy = 16;
   }, [tex]);
   return (
-    <mesh geometry={geo} rotation={[-Math.PI / 2 + 0.18, 0, 0]}>
-      <meshStandardMaterial map={tex} transparent side={THREE.DoubleSide} roughness={1} depthWrite={false} />
+    <mesh geometry={geo} rotation={[-Math.PI / 2 + 0.16, 0, 0]}>
+      <meshStandardMaterial map={tex} transparent side={THREE.DoubleSide} roughness={0.85} metalness={0.05} depthWrite={false} />
     </mesh>
   );
 }
@@ -351,7 +357,7 @@ function Stars() {
 
 // 小惑星帯（InstancedMesh・静的行列＋親グループを回転＝安価）
 function AsteroidBelt() {
-  const count = MOBILE ? 130 : 320;
+  const count = MOBILE ? 80 : 175;
   const grp = useRef<THREE.Group>(null);
   const inst = useRef<THREE.InstancedMesh>(null);
   useEffect(() => {
@@ -628,15 +634,15 @@ function ConstellationLines() {
 
 // カイパーベルト（海王星以遠の氷天体の帯）
 function KuiperBelt() {
-  const count = MOBILE ? 110 : 280;
+  const count = MOBILE ? 60 : 140;
   const grp = useRef<THREE.Group>(null);
   const inst = useRef<THREE.InstancedMesh>(null);
   useEffect(() => {
     if (!inst.current) return;
     const dummy = new THREE.Object3D();
     for (let i = 0; i < count; i++) {
-      const ang = Math.random() * Math.PI * 2, rad = 24 + Math.random() * 18;
-      dummy.position.set(Math.cos(ang) * rad, (Math.random() - 0.5) * 3.5, Math.sin(ang) * rad);
+      const ang = Math.random() * Math.PI * 2, rad = 26 + Math.random() * 14;
+      dummy.position.set(Math.cos(ang) * rad, (Math.random() - 0.5) * 2.5, Math.sin(ang) * rad);
       dummy.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
       dummy.scale.setScalar(0.05 + Math.random() * 0.12);
       dummy.updateMatrix();
