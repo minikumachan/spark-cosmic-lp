@@ -61,18 +61,13 @@ function ViewerPlanet({ p }: { p: V }) {
   const map = useTexture(p.src);
   useMemo(() => { map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 16; }, [map]);
   const u = useMemo(() => ({ uColor: { value: new THREE.Color(p.atmo ?? "#88aaff") } }), [p.atmo]);
-  const grp = useRef<THREE.Group>(null);
   const t = useRef(0);
   useFrame((_, d) => {
-    // 入場アニメ：小さく＋速いスピンから easeOut で実物大へ（マテリアライズ遷移）
-    if (t.current < 1) {
-      t.current = Math.min(1, t.current + d * 2.0);
-      if (grp.current) grp.current.scale.setScalar(1 - Math.pow(1 - t.current, 3));
-    }
-    if (ref.current) ref.current.rotation.y += d * (0.06 + (1 - t.current) * 0.55);
+    if (t.current < 1) t.current = Math.min(1, t.current + d * 2.0);
+    if (ref.current) ref.current.rotation.y += d * (0.06 + (1 - t.current) * 0.55); // 着地時に初速スピン
   });
   return (
-    <group ref={grp} scale={0.001} rotation={[0.25, 0, 0.08]}>
+    <group rotation={[0.25, 0, 0.08]}>
       <mesh ref={ref}>
         <sphereGeometry args={[1, 160, 160]} />
         {p.sun ? (
@@ -121,18 +116,14 @@ function ViewerEarth() {
     for (const t of [day, normal, clud, lights]) t.anisotropy = 16;
   }, [day, normal, clud, lights]);
   const u = useMemo(() => ({ uColor: { value: new THREE.Color("#5fb8ff") } }), []);
-  const grp = useRef<THREE.Group>(null);
   const t = useRef(0);
   useFrame((_, d) => {
-    if (t.current < 1) {
-      t.current = Math.min(1, t.current + d * 2.0);
-      if (grp.current) grp.current.scale.setScalar(1 - Math.pow(1 - t.current, 3));
-    }
+    if (t.current < 1) t.current = Math.min(1, t.current + d * 2.0);
     if (earth.current) earth.current.rotation.y += d * (0.05 + (1 - t.current) * 0.5);
     if (clouds.current) clouds.current.rotation.y += d * 0.068;
   });
   return (
-    <group ref={grp} scale={0.001} rotation={[0.25, 0, 0.08]}>
+    <group rotation={[0.25, 0, 0.08]}>
       <mesh ref={earth}>
         <sphereGeometry args={[1, 200, 200]} />
         <meshStandardMaterial map={day} normalMap={normal} normalScale={new THREE.Vector2(1, 1)} emissiveMap={lights} emissive={new THREE.Color("#ffd9a0")} emissiveIntensity={0.9} roughness={0.85} metalness={0.05} />
@@ -190,9 +181,45 @@ function ViewerBackdrop({ currentKey }: { currentKey: string }) {
   );
 }
 
+// 惑星切替時に「カメラ自体が新しい惑星へ弧を描いて飛ぶ」遷移（ドリーアウト→周回→ドリーイン）
+type Controls = { enabled: boolean; update: () => void };
+function ViewerCameraRig({ idx, controls }: { idx: number; controls: React.RefObject<Controls | null> }) {
+  const prog = useRef(1);
+  const prev = useRef(idx);
+  const startAz = useRef(0);
+  useFrame(({ camera }, d) => {
+    if (idx !== prev.current) {
+      prev.current = idx;
+      prog.current = 0;
+      startAz.current = Math.atan2(camera.position.x, camera.position.z);
+    }
+    if (prog.current < 1) {
+      if (controls.current) controls.current.enabled = false;
+      prog.current = Math.min(1, prog.current + d * 1.15);
+      const e = prog.current;
+      const ease = e < 0.5 ? 2 * e * e : 1 - Math.pow(-2 * e + 2, 2) / 2;
+      const dist = 4 + Math.sin(e * Math.PI) * 3.4; // 一旦引いて寄る
+      const az = startAz.current + ease * 1.05; // 軽く回り込む
+      const el = 0.22 + Math.sin(e * Math.PI) * 0.2;
+      camera.position.set(
+        Math.sin(az) * Math.cos(el) * dist,
+        Math.sin(el) * dist + 0.3,
+        Math.cos(az) * Math.cos(el) * dist,
+      );
+      camera.lookAt(0, 0, 0);
+      if (e >= 1 && controls.current) {
+        controls.current.enabled = true;
+        controls.current.update();
+      }
+    }
+  });
+  return null;
+}
+
 export default function PlanetViewer() {
   const [open, setOpen] = useState(false);
   const [idx, setIdx] = useState(0);
+  const controls = useRef<Controls | null>(null);
   useEffect(() => {
     const onOpen = (e: Event) => {
       const k = (e as CustomEvent).detail?.planet;
@@ -235,10 +262,11 @@ export default function PlanetViewer() {
         <Suspense fallback={null}>
           {p.key === "earth" ? <ViewerEarth /> : <ViewerPlanet p={p} key={p.key} />}
         </Suspense>
+        <ViewerCameraRig idx={idx} controls={controls} />
         <EffectComposer>
-          <Bloom luminanceThreshold={0.6} luminanceSmoothing={0.3} intensity={0.7} mipmapBlur radius={0.6} />
+          <Bloom luminanceThreshold={0.68} luminanceSmoothing={0.22} intensity={0.42} mipmapBlur radius={0.4} />
         </EffectComposer>
-        <OrbitControls enablePan={false} autoRotate autoRotateSpeed={0.4} minDistance={2.2} maxDistance={9} enableDamping dampingFactor={0.07} />
+        <OrbitControls ref={controls as never} enablePan={false} autoRotate autoRotateSpeed={0.4} minDistance={2.2} maxDistance={9} enableDamping dampingFactor={0.07} />
       </Canvas>
 
       <div style={S.topbar}>

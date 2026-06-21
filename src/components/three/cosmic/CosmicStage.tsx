@@ -75,7 +75,7 @@ function Earth() {
     day.colorSpace = THREE.SRGBColorSpace;
     lights.colorSpace = THREE.SRGBColorSpace;
     clud.colorSpace = THREE.SRGBColorSpace;
-    for (const t of [day, normal, clud, lights]) t.anisotropy = 8;
+    for (const t of [day, normal, clud, lights]) t.anisotropy = 16;
   }, [day, normal, clud, lights]);
   const atmo = useMemo(() => ({ uColor: { value: new THREE.Color("#5fb8ff") } }), []);
   useFrame((_, d) => {
@@ -185,7 +185,7 @@ function Planet({ src, pos, scale, rot, tilt, ring, faintRing, rocky, normalSrc,
   const [map, nrm] = useTexture([src, normalSrc ?? src]);
   useMemo(() => {
     map.colorSpace = THREE.SRGBColorSpace;
-    map.anisotropy = 8;
+    map.anisotropy = 16;
   }, [map]);
   useFrame((_, d) => {
     if (ref.current) ref.current.rotation.y += d * rot;
@@ -445,7 +445,7 @@ function AsteroidBelt() {
 // 太陽（実テクスチャの表面＋コロナのグロー・光源）
 function Sun() {
   const tex = useTexture("/assets/planet/sun.webp");
-  useMemo(() => { tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; }, [tex]);
+  useMemo(() => { tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 16; }, [tex]);
   const core = useRef<THREE.Mesh>(null);
   useFrame((_, d) => { if (core.current) core.current.rotation.y += d * 0.012; });
   return (
