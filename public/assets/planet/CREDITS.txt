@@ -1,0 +1,13 @@
+spark LP — 宇宙テクスチャ クレジット / Texture Credits
+
+地球(day/normal/clouds/night-lights):
+  three.js examples textures (MIT License) — 原典 NASA Visible Earth (public domain)
+  https://github.com/mrdoob/three.js  (examples/textures/planets/)
+
+水星/金星/火星/木星/土星/土星の環/天王星/海王星/月/太陽:
+  Solar System Scope textures — Licensed under CC BY 4.0
+  https://www.solarsystemscope.com/textures/
+
+法線マップ(moon_n/mercury_n/mars_n): 上記アルベドから生成(height->normal)。
+
+NASA画像はパブリックドメイン。CC BY 4.0 素材は帰属を保持。

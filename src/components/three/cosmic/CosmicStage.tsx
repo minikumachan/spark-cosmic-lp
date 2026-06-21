@@ -843,6 +843,8 @@ export default function CosmicStage() {
   if (!enabled) return null;
   return (
     <Canvas
+      aria-hidden="true"
+      tabIndex={-1}
       style={{ position: "fixed", inset: 0 }}
       dpr={MOBILE ? [1, 1] : [1, 1.5]}
       frameloop={active ? "always" : "never"}

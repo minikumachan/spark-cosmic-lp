@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://spark-lp.pages.dev/sitemap-index.xml
