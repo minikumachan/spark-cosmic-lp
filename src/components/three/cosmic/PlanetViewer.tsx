@@ -56,7 +56,7 @@ function ViewerRing() {
   );
 }
 
-function ViewerPlanet({ p }: { p: V }) {
+function ViewerPlanet({ p, pos }: { p: V; pos: THREE.Vector3 }) {
   const ref = useRef<THREE.Mesh>(null);
   const map = useTexture(p.src);
   useMemo(() => { map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 16; }, [map]);
@@ -67,7 +67,7 @@ function ViewerPlanet({ p }: { p: V }) {
     if (ref.current) ref.current.rotation.y += d * (0.06 + (1 - t.current) * 0.55); // 着地時に初速スピン
   });
   return (
-    <group rotation={[0.25, 0, 0.08]}>
+    <group position={pos} rotation={[0.25, 0, 0.08]}>
       <mesh ref={ref}>
         <sphereGeometry args={[1, 160, 160]} />
         {p.sun ? (
@@ -100,7 +100,7 @@ function ViewerPlanet({ p }: { p: V }) {
 }
 
 // 地球は雲＋夜景(街の灯)＋法線＋大気のフル再現
-function ViewerEarth() {
+function ViewerEarth({ pos }: { pos: THREE.Vector3 }) {
   const earth = useRef<THREE.Mesh>(null);
   const clouds = useRef<THREE.Mesh>(null);
   const [day, normal, clud, lights] = useTexture([
@@ -123,7 +123,7 @@ function ViewerEarth() {
     if (clouds.current) clouds.current.rotation.y += d * 0.068;
   });
   return (
-    <group rotation={[0.25, 0, 0.08]}>
+    <group position={pos} rotation={[0.25, 0, 0.08]}>
       <mesh ref={earth}>
         <sphereGeometry args={[1, 200, 200]} />
         <meshStandardMaterial map={day} normalMap={normal} normalScale={new THREE.Vector2(1, 1)} emissiveMap={lights} emissive={new THREE.Color("#ffd9a0")} emissiveIntensity={0.9} roughness={0.85} metalness={0.05} />
@@ -140,78 +140,39 @@ function ViewerEarth() {
   );
 }
 
-// 鑑賞中の背景に「宇宙の中にいる」文脈（遠方の太陽＋他の天体）。
-// 現在見ている天体と重複する背景天体は隠す（太陽が二つに見える不具合の修正）。
-function ViewerBackdrop({ currentKey }: { currentKey: string }) {
-  const [sun, jup, nep] = useTexture([
-    "/assets/planet/sun.webp",
-    "/assets/planet/jupiter.webp",
-    "/assets/planet/neptune.webp",
-  ]);
-  useMemo(() => {
-    for (const t of [sun, jup, nep]) t.colorSpace = THREE.SRGBColorSpace;
-  }, [sun, jup, nep]);
-  return (
-    <>
-      {currentKey !== "sun" && (
-        <group position={[-24, 10, -40]}>
-          <mesh>
-            <sphereGeometry args={[2.4, 32, 32]} />
-            <meshBasicMaterial map={sun} toneMapped={false} />
-          </mesh>
-          <mesh scale={1.7}>
-            <sphereGeometry args={[2.4, 24, 24]} />
-            <meshBasicMaterial color="#ffd98a" transparent opacity={0.16} blending={THREE.AdditiveBlending} depthWrite={false} />
-          </mesh>
-        </group>
-      )}
-      {currentKey !== "jupiter" && (
-        <mesh position={[18, -6, -30]} rotation={[0.2, 0, 0.1]}>
-          <sphereGeometry args={[1.5, 48, 48]} />
-          <meshStandardMaterial map={jup} roughness={0.6} />
-        </mesh>
-      )}
-      {currentKey !== "neptune" && (
-        <mesh position={[-14, -8, -24]} rotation={[0.25, 0, 0]}>
-          <sphereGeometry args={[0.85, 48, 48]} />
-          <meshStandardMaterial map={nep} roughness={0.55} />
-        </mesh>
-      )}
-    </>
-  );
-}
+// 各天体を宇宙空間の別位置に配置（太陽→海王星を一列に）
+const VPOS: Record<string, [number, number, number]> = {
+  sun: [-70, 0, 0],
+  mercury: [-54, 2, -4],
+  venus: [-38, -2, 4],
+  earth: [-22, 2, -3],
+  moon: [-8, -2, 4],
+  mars: [8, 1, -5],
+  jupiter: [26, 3, -7],
+  saturn: [46, -2, -4],
+  uranus: [62, 2, -6],
+  neptune: [78, -1, -3],
+};
+const vpos = (key: string) => new THREE.Vector3(...(VPOS[key] ?? [0, 0, 0]));
 
-// 惑星切替時に「カメラ自体が新しい惑星へ弧を描いて飛ぶ」遷移（ドリーアウト→周回→ドリーイン）
-type Controls = { enabled: boolean; update: () => void };
-function ViewerCameraRig({ idx, controls }: { idx: number; controls: React.RefObject<Controls | null> }) {
-  const prog = useRef(1);
-  const prev = useRef(idx);
-  const startAz = useRef(0);
+// 切替時：OrbitControls の target を新天体へ滑らかに移動。
+// → カメラは offset を保ったまま「空間を移動し、向き直りながら近づく」飛行になる。
+type Controls = { enabled: boolean; update: () => void; target: THREE.Vector3 };
+function ViewerCameraRig({ target, controls }: { target: THREE.Vector3; controls: React.RefObject<Controls | null> }) {
+  const inited = useRef(false);
   useFrame(({ camera }, d) => {
-    if (idx !== prev.current) {
-      prev.current = idx;
-      prog.current = 0;
-      startAz.current = Math.atan2(camera.position.x, camera.position.z);
+    if (!controls.current) return;
+    if (!inited.current) {
+      // 開いた瞬間は飛ばずに最初の天体を即フレーミング
+      inited.current = true;
+      controls.current.target.copy(target);
+      camera.position.set(target.x, target.y + 0.4, target.z + 4);
+      controls.current.update();
+      return;
     }
-    if (prog.current < 1) {
-      if (controls.current) controls.current.enabled = false;
-      prog.current = Math.min(1, prog.current + d * 1.15);
-      const e = prog.current;
-      const ease = e < 0.5 ? 2 * e * e : 1 - Math.pow(-2 * e + 2, 2) / 2;
-      const dist = 4 + Math.sin(e * Math.PI) * 3.4; // 一旦引いて寄る
-      const az = startAz.current + ease * 1.05; // 軽く回り込む
-      const el = 0.22 + Math.sin(e * Math.PI) * 0.2;
-      camera.position.set(
-        Math.sin(az) * Math.cos(el) * dist,
-        Math.sin(el) * dist + 0.3,
-        Math.cos(az) * Math.cos(el) * dist,
-      );
-      camera.lookAt(0, 0, 0);
-      if (e >= 1 && controls.current) {
-        controls.current.enabled = true;
-        controls.current.update();
-      }
-    }
+    const k = 1 - Math.exp(-2.6 * d); // フレームレート非依存の滑らかな追従＝惑星へ飛んで近づく
+    controls.current.target.lerp(target, k);
+    controls.current.update();
   });
   return null;
 }
@@ -220,6 +181,17 @@ export default function PlanetViewer() {
   const [open, setOpen] = useState(false);
   const [idx, setIdx] = useState(0);
   const controls = useRef<Controls | null>(null);
+  // 遷移中だけ「前の天体」も描画（飛び去る様子が見える）
+  const [prevIdx, setPrevIdx] = useState<number | null>(null);
+  const prevRef = useRef(idx);
+  useEffect(() => {
+    if (prevRef.current !== idx) {
+      setPrevIdx(prevRef.current);
+      prevRef.current = idx;
+      const t = setTimeout(() => setPrevIdx(null), 1500);
+      return () => clearTimeout(t);
+    }
+  }, [idx]);
   useEffect(() => {
     const onOpen = (e: Event) => {
       const k = (e as CustomEvent).detail?.planet;
@@ -252,17 +224,23 @@ export default function PlanetViewer() {
       <style>{`@keyframes vinfoIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}.vinfo{animation:vinfoIn .55s cubic-bezier(.16,1,.3,1) both}.vchip{transition:all .25s cubic-bezier(.16,1,.3,1)}`}</style>
       <Canvas camera={{ position: [0, 0.3, 4], fov: 45 }} dpr={[1, 2]} gl={{ antialias: true, alpha: false }} style={{ position: "absolute", inset: 0 }}>
         <color attach="background" args={["#04050b"]} />
-        <ambientLight intensity={0.05} />
-        <directionalLight position={[5, 2.5, 4]} intensity={3.4} color="#fff4e6" />
-        <directionalLight position={[-5, -1, -4]} intensity={0.35} color="#6f9cff" />
-        <Stars radius={80} depth={50} count={4000} factor={3.5} saturation={0.5} fade speed={0.3} />
+        <ambientLight intensity={0.06} />
+        <directionalLight position={[-16, 12, 24]} intensity={3.2} color="#fff4e6" />
+        <directionalLight position={[12, -4, -12]} intensity={0.35} color="#6f9cff" />
+        <Stars radius={130} depth={80} count={6000} factor={3.5} saturation={0.5} fade speed={0.22} />
         <Suspense fallback={null}>
-          <ViewerBackdrop currentKey={p.key} />
+          {p.key === "earth" ? <ViewerEarth pos={vpos(p.key)} /> : <ViewerPlanet p={p} pos={vpos(p.key)} key={p.key} />}
         </Suspense>
-        <Suspense fallback={null}>
-          {p.key === "earth" ? <ViewerEarth /> : <ViewerPlanet p={p} key={p.key} />}
-        </Suspense>
-        <ViewerCameraRig idx={idx} controls={controls} />
+        {prevIdx !== null && prevIdx !== idx && (
+          <Suspense fallback={null}>
+            {PLANETS[prevIdx].key === "earth" ? (
+              <ViewerEarth pos={vpos(PLANETS[prevIdx].key)} />
+            ) : (
+              <ViewerPlanet p={PLANETS[prevIdx]} pos={vpos(PLANETS[prevIdx].key)} key={`prev-${PLANETS[prevIdx].key}`} />
+            )}
+          </Suspense>
+        )}
+        <ViewerCameraRig target={vpos(p.key)} controls={controls} />
         <EffectComposer>
           <Bloom luminanceThreshold={0.68} luminanceSmoothing={0.22} intensity={0.42} mipmapBlur radius={0.4} />
         </EffectComposer>
