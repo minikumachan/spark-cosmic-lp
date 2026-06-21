@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { ScreenQuad, useTexture, PerformanceMonitor } from "@react-three/drei";
+import { ScreenQuad, useTexture, PerformanceMonitor, Environment, Lightformer } from "@react-three/drei";
 import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
 
@@ -146,20 +146,23 @@ type PlanetDef = {
   faintRing?: boolean;
   rocky?: boolean;
   bump?: number;
+  normalSrc?: string;
   atmo?: string;
 };
+// rot は実際の自転の向き/速さの比率（ガス惑星=速い・内惑星=遅い・金星/天王星=逆行）
 const PLANETS: PlanetDef[] = [
-  { src: "/assets/planet/moon.webp", pos: [-3, 1.8, -5.5], scale: 0.5, rot: 0.02, tilt: 0.2, rocky: true, bump: 0.11 },
-  { src: "/assets/planet/mars.webp", pos: [-7.5, -2.6, -11.5], scale: 0.9, rot: 0.05, tilt: 0.35, rocky: true, bump: 0.07, atmo: "#ff7a4d" },
-  { src: "/assets/planet/jupiter.webp", pos: [-11.5, 4.2, -18.5], scale: 2.3, rot: 0.07, tilt: 0.18, atmo: "#e8b87a" },
-  { src: "/assets/planet/saturn.webp", pos: [-15.5, -2, -26], scale: 1.6, rot: 0.06, tilt: 0.42, ring: true, atmo: "#e6c77a" },
-  { src: "/assets/planet/neptune.webp", pos: [-19, 5.6, -33], scale: 1.2, rot: 0.05, tilt: 0.25, atmo: "#5b8cff" },
+  { src: "/assets/planet/moon.webp", normalSrc: "/assets/planet/moon_n.webp", pos: [-3, 1.8, -5.5], scale: 0.5, rot: 0.004, tilt: 0.2, rocky: true },
+  { src: "/assets/planet/mars.webp", normalSrc: "/assets/planet/mars_n.webp", pos: [-7.5, -2.6, -11.5], scale: 0.9, rot: 0.038, tilt: 0.35, rocky: true, atmo: "#ff7a4d" },
+  { src: "/assets/planet/jupiter.webp", pos: [-11.5, 4.2, -18.5], scale: 2.3, rot: 0.1, tilt: 0.18, atmo: "#e8b87a" },
+  { src: "/assets/planet/saturn.webp", pos: [-15.5, -2, -26], scale: 1.6, rot: 0.09, tilt: 0.42, ring: true, atmo: "#e6c77a" },
+  { src: "/assets/planet/neptune.webp", pos: [-19, 5.6, -33], scale: 1.2, rot: 0.06, tilt: 0.25, atmo: "#5b8cff" },
 ];
-// 太陽系を完全再現する常在天体（水星・金星・天王星）。内惑星は太陽側、天王星は土星-海王星間。
+// 太陽系を完全再現する常在天体（水星・金星・天王星・冥王星）
 const AMBIENT: PlanetDef[] = [
-  { src: "/assets/planet/mercury.webp", pos: [16, 5, 9], scale: 0.42, rot: 0.008, tilt: 0.03, rocky: true, bump: 0.1 },
-  { src: "/assets/planet/venus.webp", pos: [10, 1.5, 5], scale: 0.85, rot: -0.006, tilt: 0.05, atmo: "#e8c87a" },
-  { src: "/assets/planet/uranus.webp", pos: [-17.5, 1.5, -30], scale: 1.3, rot: 0.05, tilt: 1.6, faintRing: true, atmo: "#9fe8e0" },
+  { src: "/assets/planet/mercury.webp", normalSrc: "/assets/planet/mercury_n.webp", pos: [16, 5, 9], scale: 0.42, rot: 0.004, tilt: 0.03, rocky: true },
+  { src: "/assets/planet/venus.webp", pos: [10, 1.5, 5], scale: 0.85, rot: -0.002, tilt: 0.05, atmo: "#e8c87a" },
+  { src: "/assets/planet/uranus.webp", pos: [-17.5, 1.5, -30], scale: 1.3, rot: -0.055, tilt: 1.6, faintRing: true, atmo: "#9fe8e0" },
+  { src: "/assets/planet/moon.webp", normalSrc: "/assets/planet/moon_n.webp", pos: [-24, 3, -46], scale: 0.28, rot: 0.003, tilt: 0.1, rocky: true }, // 冥王星(遠方の準惑星)
 ];
 
 function FaintRing() {
@@ -171,9 +174,9 @@ function FaintRing() {
   );
 }
 
-function Planet({ src, pos, scale, rot, tilt, ring, faintRing, rocky, bump, atmo }: PlanetDef) {
+function Planet({ src, pos, scale, rot, tilt, ring, faintRing, rocky, normalSrc, atmo }: PlanetDef) {
   const ref = useRef<THREE.Mesh>(null);
-  const map = useTexture(src);
+  const [map, nrm] = useTexture([src, normalSrc ?? src]);
   useMemo(() => {
     map.colorSpace = THREE.SRGBColorSpace;
     map.anisotropy = 8;
@@ -187,9 +190,9 @@ function Planet({ src, pos, scale, rot, tilt, ring, faintRing, rocky, bump, atmo
         <sphereGeometry args={[1, 128, 128]} />
         <meshStandardMaterial
           map={map}
-          bumpMap={rocky ? map : null}
-          bumpScale={bump ?? (rocky ? 0.06 : 0)}
-          roughness={rocky ? 0.96 : 0.62}
+          normalMap={normalSrc ? nrm : null}
+          normalScale={normalSrc ? new THREE.Vector2(1.4, 1.4) : undefined}
+          roughness={rocky ? 0.95 : 0.6}
           metalness={0}
         />
       </mesh>
@@ -555,6 +558,115 @@ function Comet() {
   );
 }
 
+// 天の川（銀河面に集中する濃い星の帯）
+function MilkyWay() {
+  const geo = useMemo(() => {
+    const count = MOBILE ? 2600 : 6000;
+    const pos = new Float32Array(count * 3);
+    const col = new Float32Array(count * 3);
+    const c1 = new THREE.Color("#fff0d8"), c2 = new THREE.Color("#bcd0ff"), c3 = new THREE.Color("#ffd9b0");
+    const cs = [c1, c2, c3];
+    for (let i = 0; i < count; i++) {
+      const i3 = i * 3;
+      const ph = Math.random() * Math.PI * 2;
+      const r = 48 + Math.random() * 26;
+      const x = Math.cos(ph) * r, z = Math.sin(ph) * r;
+      const y = (Math.random() - 0.5) * 7 * Math.pow(Math.random(), 2); // 帯状に薄く
+      pos[i3] = x; pos[i3 + 1] = y; pos[i3 + 2] = z;
+      const c = cs[(Math.random() * cs.length) | 0].clone().multiplyScalar(0.35 + Math.random() * 0.5);
+      col[i3] = c.r; col[i3 + 1] = c.g; col[i3 + 2] = c.b;
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+    g.setAttribute("color", new THREE.BufferAttribute(col, 3));
+    return g;
+  }, []);
+  useEffect(() => () => geo.dispose(), [geo]);
+  return (
+    <group rotation={[0.5, 0.3, 0.62]}>
+      <points geometry={geo}>
+        <pointsMaterial size={0.11} sizeAttenuation vertexColors transparent opacity={0.82} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
+      </points>
+    </group>
+  );
+}
+
+// 星座線（遠方に淡い星座のパターン）
+const CONSTELLATIONS: { pos: [number, number, number]; pts: [number, number][] }[] = [
+  { pos: [-32, 15, -30], pts: [[0, 0], [2.2, 1.2], [4.4, 0.6], [5.6, 2.4], [3.4, 3.2]] }, // W
+  { pos: [30, -8, -34], pts: [[0, 0], [1.6, 1.4], [3.4, 1.8], [5, 0.8], [3.6, -1.2], [1.6, -1]] }, // 多角形
+  { pos: [-24, -18, -38], pts: [[0, 0], [2.4, 2], [4.2, 2.8], [6, 4.4]] }, // 線
+  { pos: [22, 16, -32], pts: [[0, 0], [1.2, 2.2], [2.8, 1.6], [2.0, -0.6], [0.4, -1.4]] }, // 小星座
+];
+function ConstellationLines() {
+  const items = useMemo(
+    () =>
+      CONSTELLATIONS.map((c) => {
+        const points = c.pts.map((p) => new THREE.Vector3(c.pos[0] + p[0] * 2.2, c.pos[1] + p[1] * 2.2, c.pos[2]));
+        const geo = new THREE.BufferGeometry().setFromPoints(points);
+        const lineMat = new THREE.LineBasicMaterial({ color: "#9db4ff", transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
+        const ptsMat = new THREE.PointsMaterial({ size: 0.55, sizeAttenuation: true, color: "#dce8ff", transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
+        return { line: new THREE.Line(geo, lineMat), pts: new THREE.Points(geo, ptsMat), geo, lineMat, ptsMat };
+      }),
+    [],
+  );
+  useEffect(
+    () => () => items.forEach((o) => { o.geo.dispose(); o.lineMat.dispose(); o.ptsMat.dispose(); }),
+    [items],
+  );
+  return (
+    <>
+      {items.map((o, i) => (
+        <group key={i}>
+          <primitive object={o.line} />
+          <primitive object={o.pts} />
+        </group>
+      ))}
+    </>
+  );
+}
+
+// カイパーベルト（海王星以遠の氷天体の帯）
+function KuiperBelt() {
+  const count = MOBILE ? 110 : 280;
+  const grp = useRef<THREE.Group>(null);
+  const inst = useRef<THREE.InstancedMesh>(null);
+  useEffect(() => {
+    if (!inst.current) return;
+    const dummy = new THREE.Object3D();
+    for (let i = 0; i < count; i++) {
+      const ang = Math.random() * Math.PI * 2, rad = 24 + Math.random() * 18;
+      dummy.position.set(Math.cos(ang) * rad, (Math.random() - 0.5) * 3.5, Math.sin(ang) * rad);
+      dummy.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
+      dummy.scale.setScalar(0.05 + Math.random() * 0.12);
+      dummy.updateMatrix();
+      inst.current.setMatrixAt(i, dummy.matrix);
+    }
+    inst.current.instanceMatrix.needsUpdate = true;
+  }, [count]);
+  useFrame((_, d) => { if (grp.current) grp.current.rotation.y += d * 0.008; });
+  return (
+    <group ref={grp} position={[-20, 4, -38]} rotation={[0.3, 0, 0.05]}>
+      <instancedMesh ref={inst} args={[undefined, undefined, count]}>
+        <dodecahedronGeometry args={[1, 0]} />
+        <meshStandardMaterial color="#9aa8c0" roughness={1} metalness={0} flatShading />
+      </instancedMesh>
+    </group>
+  );
+}
+
+// HDR環境光（手続き的・反射のリアル化）。デスクトップのみ
+function SpaceEnv() {
+  if (MOBILE) return null;
+  return (
+    <Environment resolution={64} frames={1}>
+      <Lightformer intensity={2.2} color="#fff4e0" position={[10, 5, 8]} scale={[7, 7, 1]} />
+      <Lightformer intensity={0.35} color="#4d6bff" position={[-9, 0, -6]} scale={[12, 12, 1]} />
+      <Lightformer intensity={0.18} color="#ff7ac0" position={[0, -8, -10]} scale={[10, 10, 1]} />
+    </Environment>
+  );
+}
+
 // ── galaxy（局所空間で差動回転→配置） ──
 const galaxyVert = /* glsl */ `
 uniform float uTime; uniform float uSize;
@@ -670,6 +782,7 @@ function Rig() {
   return (
     <>
       <AdaptiveQuality />
+      <SpaceEnv />
       <fog attach="fog" args={["#0a0c1a", 18, 62]} />
       <ambientLight intensity={0.045} />
       <directionalLight position={[24, 8, 16]} intensity={3.6} color="#fff4e6" />
@@ -677,6 +790,8 @@ function Rig() {
       <Nebula />
       <NebulaClouds />
       <DistantGalaxies />
+      <MilkyWay />
+      <ConstellationLines />
       <Stars />
       <Suspense fallback={null}>
         <Sun />
@@ -684,6 +799,7 @@ function Rig() {
       <ShootingStars />
       <Comet />
       <AsteroidBelt />
+      <KuiperBelt />
       <Galaxy />
       <Suspense fallback={null}>
         <Earth />
