@@ -109,7 +109,7 @@ function Earth() {
 function SaturnRing() {
   const tex = useTexture("/assets/planet/saturn_ring.webp");
   const geo = useMemo(() => {
-    const g = new THREE.RingGeometry(1.32, 2.45, 256);
+    const g = new THREE.RingGeometry(1.32, 2.45, 160);
     const pos = g.attributes.position;
     const uv = g.attributes.uv;
     const v = new THREE.Vector3();
@@ -193,7 +193,7 @@ function Planet({ src, pos, scale, rot, tilt, ring, faintRing, rocky, normalSrc,
   return (
     <group position={pos} rotation={[tilt, 0, 0.04]} scale={scale}>
       <mesh ref={ref}>
-        <sphereGeometry args={[1, 128, 128]} />
+        <sphereGeometry args={[1, 96, 96]} />
         <meshStandardMaterial
           map={map}
           normalMap={normalSrc ? nrm : null}
@@ -743,7 +743,7 @@ void main(){
   vec4 mp=modelMatrix*vec4(sp,1.0);
   vec4 vp=viewMatrix*mp;
   gl_Position=projectionMatrix*vp;
-  gl_PointSize=min(uSize*aScale*(1.0/-vp.z), 9.0);
+  gl_PointSize=min(uSize*aScale*(1.0/-vp.z), 14.0);
   vColor=aColor;
 }`;
 const galaxyFrag = /* glsl */ `
@@ -754,7 +754,7 @@ function Galaxy() {
   const tex = useMemo(() => softTexture(), []);
   const geometry = useMemo(() => {
     // 天の川級の規模：中心バルジ＋多腕の円盤＋HII領域
-    const count = MOBILE ? 24000 : 72000;
+    const count = MOBILE ? 22000 : 60000;
     const radius = 11, branches = 5, spin = 1.18, randomness = 0.42, power = 2.9;
     const cCore = new THREE.Color("#fff3d2"), cInner = new THREE.Color("#ffb060"),
       cMid = new THREE.Color("#d24dff"), cOuter = new THREE.Color("#4d7bff"), cPink = new THREE.Color("#ff5fa8");
@@ -794,7 +794,7 @@ function Galaxy() {
     return g;
   }, []);
   useEffect(() => () => geometry.dispose(), [geometry]);
-  const uniforms = useMemo(() => ({ uTime: { value: 0 }, uSize: { value: 34 } }), []);
+  const uniforms = useMemo(() => ({ uTime: { value: 0 }, uSize: { value: 42 } }), []);
   useFrame((_, d) => { if (mat.current) mat.current.uniforms.uTime.value += d; });
   return (
     <group position={[GX, GY, GZ]} rotation={[0.52, 0.4, 0.08]} scale={1.6}>
@@ -820,7 +820,7 @@ const STOPS: { sel: string; p: [number, number, number]; l: [number, number, num
   { sel: "#strengths", p: [-8.8, 5.4, -9.5], l: [-11.5, 4.2, -18.5] }, // 木星
   { sel: "#pricing", p: [-12.8, -0.6, -18], l: [-15.5, -2, -26] }, // 土星
   { sel: "#faq", p: [-16.4, 6.8, -25], l: [-19, 5.6, -33] }, // 海王星
-  { sel: "#contact", p: [GX + 4, GY + 7, GZ + 25], l: [GX, GY, GZ] }, // 天の川級の銀河（全景）
+  { sel: "#contact", p: [GX + 3, GY + 4.5, GZ + 15], l: [GX, GY, GZ] }, // 天の川級の銀河（接近・一粒一粒が巨大）
 ];
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
@@ -938,7 +938,7 @@ export default function CosmicStage() {
       dpr={MOBILE ? [1, 1] : [1, 1.5]}
       frameloop={active ? "always" : "never"}
       camera={{ position: [0, 0.2, 3.6], fov: 50 }}
-      gl={{ antialias: !MOBILE, alpha: false, powerPreference: "high-performance" }}
+      gl={{ antialias: !MOBILE, alpha: false, stencil: false, powerPreference: "high-performance" }}
     >
       <Rig />
     </Canvas>

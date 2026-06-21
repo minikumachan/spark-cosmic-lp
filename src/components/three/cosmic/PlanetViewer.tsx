@@ -222,7 +222,7 @@ export default function PlanetViewer() {
   return (
     <div role="dialog" aria-modal="true" aria-label="惑星鑑賞" style={S.overlay}>
       <style>{`@keyframes vinfoIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}.vinfo{animation:vinfoIn .55s cubic-bezier(.16,1,.3,1) both}.vchip{transition:all .25s cubic-bezier(.16,1,.3,1)}`}</style>
-      <Canvas camera={{ position: [0, 0.3, 4], fov: 45 }} dpr={[1, 2]} gl={{ antialias: true, alpha: false }} style={{ position: "absolute", inset: 0 }}>
+      <Canvas camera={{ position: [0, 0.3, 4], fov: 45 }} dpr={[1, 2]} gl={{ antialias: true, alpha: false, stencil: false }} style={{ position: "absolute", inset: 0 }}>
         <color attach="background" args={["#04050b"]} />
         <ambientLight intensity={0.06} />
         <directionalLight position={[-16, 12, 24]} intensity={3.2} color="#fff4e6" />
