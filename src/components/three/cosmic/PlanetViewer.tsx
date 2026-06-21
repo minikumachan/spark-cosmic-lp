@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, useTexture, Stars } from "@react-three/drei";
 import { EffectComposer, Bloom } from "@react-three/postprocessing";
@@ -181,6 +181,13 @@ export default function PlanetViewer() {
   const [open, setOpen] = useState(false);
   const [idx, setIdx] = useState(0);
   const controls = useRef<Controls | null>(null);
+  const selectorRef = useRef<HTMLDivElement>(null);
+  // 選択中の天体チップを常にビューポート中央へスクロール（モバイルで探しやすい）
+  useEffect(() => {
+    if (!open) return;
+    const el = selectorRef.current?.querySelector('[aria-selected="true"]') as HTMLElement | null;
+    el?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+  }, [idx, open]);
   // 遷移中だけ「前の天体」も描画（飛び去る様子が見える）
   const [prevIdx, setPrevIdx] = useState<number | null>(null);
   const prevRef = useRef(idx);
@@ -220,8 +227,8 @@ export default function PlanetViewer() {
   if (!open) return null;
   const p = PLANETS[idx];
   return (
-    <div role="dialog" aria-modal="true" aria-label="惑星鑑賞" style={S.overlay}>
-      <style>{`@keyframes vinfoIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}.vinfo{animation:vinfoIn .55s cubic-bezier(.16,1,.3,1) both}.vchip{transition:all .25s cubic-bezier(.16,1,.3,1)}`}</style>
+    <div role="dialog" aria-modal="true" aria-label="惑星鑑賞" className="pv-overlay">
+      <style>{PV_CSS}</style>
       <Canvas camera={{ position: [0, 0.3, 4], fov: 45 }} dpr={[1, 2]} gl={{ antialias: true, alpha: false, stencil: false }} style={{ position: "absolute", inset: 0 }}>
         <color attach="background" args={["#04050b"]} />
         <ambientLight intensity={0.06} />
@@ -247,54 +254,85 @@ export default function PlanetViewer() {
         <OrbitControls ref={controls as never} enablePan={false} autoRotate autoRotateSpeed={0.4} minDistance={2.2} maxDistance={9} enableDamping dampingFactor={0.07} />
       </Canvas>
 
-      <div style={S.topbar}>
-        <span style={S.kicker}>✦ 惑星図鑑 — ドラッグで回転・スクロールでズーム</span>
-        <button onClick={() => setOpen(false)} style={S.close} aria-label="閉じる">✕ 閉じる</button>
-      </div>
+      <header className="pv-top">
+        <div className="pv-title vinfo" key={p.key}>
+          <p className="pv-en">
+            ✦ {p.en}<span className="pv-hint">　ドラッグで回転 / スクロール・ピンチでズーム</span>
+          </p>
+          <h2 className="pv-name">{p.name}</h2>
+        </div>
+        <button className="pv-close" onClick={() => setOpen(false)} aria-label="閉じる" title="閉じる">✕</button>
+      </header>
 
-      <div style={S.info} className="vinfo" key={p.key}>
-        <p style={S.en}>{p.en}</p>
-        <h2 style={S.name}>{p.name}</h2>
-        <dl style={S.facts}>
+      <div className="pv-bottom">
+        <dl className="pv-facts vinfo" key={`f-${p.key}`}>
           {p.facts.map(([k, v]) => (
-            <div key={k} style={S.fact}>
-              <dt style={S.factK}>{k}</dt>
-              <dd style={S.factV}>{v}</dd>
+            <div className="pv-fact" key={k}>
+              <dt className="pv-fact-k">{k}</dt>
+              <dd className="pv-fact-v">{v}</dd>
             </div>
           ))}
         </dl>
-      </div>
-
-      <div style={S.selector} role="tablist" aria-label="惑星を選択">
-        {PLANETS.map((x, i) => (
-          <button
-            key={x.key}
-            role="tab"
-            aria-selected={i === idx}
-            onClick={() => setIdx(i)}
-            style={{ ...S.chip, ...(i === idx ? S.chipOn : {}) }}
-          >
-            {x.name}
-          </button>
-        ))}
+        <div className="pv-selector" role="tablist" aria-label="惑星を選択" ref={selectorRef}>
+          {PLANETS.map((x, i) => (
+            <button key={x.key} role="tab" aria-selected={i === idx} className="pv-chip" onClick={() => setIdx(i)}>
+              {x.name}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
 }
 
-const S: Record<string, CSSProperties> = {
-  overlay: { position: "fixed", inset: 0, zIndex: 200, background: "#05060d" },
-  topbar: { position: "absolute", top: 0, left: 0, right: 0, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "clamp(1rem,3vw,2rem)", pointerEvents: "none" },
-  kicker: { fontFamily: '"JetBrains Mono",monospace', fontSize: "0.7rem", letterSpacing: "0.18em", textTransform: "uppercase", color: "#9db4ff" },
-  close: { pointerEvents: "auto", cursor: "pointer", background: "rgba(140,150,255,0.1)", border: "1px solid rgba(160,175,255,0.3)", color: "#eef1ff", borderRadius: 999, padding: "0.55rem 1.1rem", fontFamily: '"JetBrains Mono",monospace', fontSize: "0.72rem" },
-  info: { position: "absolute", left: "clamp(1rem,4vw,3.5rem)", bottom: "clamp(5.5rem,12vw,7rem)", maxWidth: 320, pointerEvents: "none", textShadow: "0 1px 20px rgba(0,0,0,0.8)" },
-  en: { fontFamily: '"JetBrains Mono",monospace', fontSize: "0.72rem", letterSpacing: "0.3em", textTransform: "uppercase", color: "#7fb2ff" },
-  name: { fontFamily: '"Clash Display","Zen Kaku Gothic New",sans-serif', fontWeight: 900, fontSize: "clamp(2.4rem,6vw,4rem)", lineHeight: 1, margin: "0.3rem 0 1.2rem", color: "#fff" },
-  facts: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.9rem 1.4rem", margin: 0 },
-  fact: { borderTop: "1px solid rgba(160,175,255,0.18)", paddingTop: "0.5rem" },
-  factK: { fontFamily: '"JetBrains Mono",monospace', fontSize: "0.62rem", letterSpacing: "0.1em", textTransform: "uppercase", color: "#8b93c4" },
-  factV: { fontFamily: '"Clash Display",sans-serif', fontWeight: 700, fontSize: "1.05rem", color: "#eef1ff", margin: "0.15rem 0 0" },
-  selector: { position: "absolute", left: "50%", transform: "translateX(-50%)", bottom: "clamp(1.2rem,3vw,2rem)", display: "flex", gap: "0.5rem", flexWrap: "wrap", justifyContent: "center", maxWidth: "92vw" },
-  chip: { cursor: "pointer", background: "rgba(140,150,255,0.06)", border: "1px solid rgba(160,175,255,0.2)", color: "#aab2dc", borderRadius: 999, padding: "0.5rem 1rem", fontFamily: '"Zen Kaku Gothic New",sans-serif', fontSize: "0.85rem", transition: "all 0.2s" },
-  chipOn: { background: "#2f6bff", border: "1px solid #2f6bff", color: "#fff", boxShadow: "0 8px 24px rgba(47,107,255,0.4)" },
-};
+// 全デバイス対応の鑑賞モードUI（上=名前/閉じる・中央=惑星・下=情報帯＋セレクタ帯。重なり無し・横スクロール・safe-area対応）
+const PV_CSS = `
+.pv-overlay{position:fixed;inset:0;z-index:200;background:#04050b;}
+@keyframes vinfoIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.vinfo{animation:vinfoIn .5s cubic-bezier(.16,1,.3,1) both}
+
+.pv-top{position:absolute;top:0;left:0;right:0;z-index:2;display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;
+  padding:max(.9rem,env(safe-area-inset-top)) max(.9rem,env(safe-area-inset-right)) .9rem max(.9rem,env(safe-area-inset-left));
+  background:linear-gradient(to bottom,rgba(4,5,11,.92),rgba(4,5,11,.45) 60%,transparent);pointer-events:none}
+.pv-title{pointer-events:none;min-width:0}
+.pv-en{font-family:"JetBrains Mono",monospace;font-size:.66rem;letter-spacing:.2em;text-transform:uppercase;color:#7fb2ff;margin:0}
+.pv-hint{display:none;color:#6b73a0;letter-spacing:.04em}
+.pv-name{font-family:"Clash Display","Zen Kaku Gothic New",sans-serif;font-weight:900;font-size:clamp(1.7rem,5.2vw,3rem);line-height:1.05;margin:.12rem 0 0;color:#fff;text-shadow:0 2px 20px rgba(0,0,0,.6)}
+.pv-close{pointer-events:auto;cursor:pointer;flex:0 0 auto;width:44px;height:44px;border-radius:999px;
+  background:rgba(140,150,255,.14);border:1px solid rgba(160,175,255,.32);color:#eef1ff;display:inline-flex;align-items:center;justify-content:center;font-size:1.05rem;
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);transition:background .2s,transform .15s}
+.pv-close:hover{background:rgba(47,107,255,.42)}
+.pv-close:active{transform:scale(.92)}
+
+.pv-bottom{position:absolute;left:0;right:0;bottom:0;z-index:2;display:flex;flex-direction:column;gap:.7rem;
+  padding:1.1rem max(.6rem,env(safe-area-inset-right)) max(.9rem,env(safe-area-inset-bottom)) max(.6rem,env(safe-area-inset-left));
+  background:linear-gradient(to top,rgba(4,5,11,.94),rgba(4,5,11,.5) 60%,transparent);pointer-events:none}
+.pv-facts{margin:0;display:flex;gap:.7rem 1.3rem;overflow-x:auto;pointer-events:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.pv-facts::-webkit-scrollbar{display:none}
+.pv-fact{flex:0 0 auto;border-left:2px solid rgba(127,178,255,.35);padding-left:.55rem}
+.pv-fact-k{font-family:"JetBrains Mono",monospace;font-size:.56rem;letter-spacing:.08em;text-transform:uppercase;color:#8b93c4;white-space:nowrap}
+.pv-fact-v{font-family:"Clash Display",sans-serif;font-weight:700;font-size:.92rem;color:#eef1ff;white-space:nowrap;margin:.1rem 0 0}
+.pv-selector{display:flex;gap:.45rem;overflow-x:auto;pointer-events:auto;scrollbar-width:none;scroll-snap-type:x proximity;padding:.15rem 0}
+.pv-selector::-webkit-scrollbar{display:none}
+.pv-chip{flex:0 0 auto;cursor:pointer;scroll-snap-align:center;min-height:42px;display:inline-flex;align-items:center;
+  background:rgba(140,150,255,.08);border:1px solid rgba(160,175,255,.2);color:#aab2dc;border-radius:999px;padding:0 1rem;white-space:nowrap;
+  font-family:"Zen Kaku Gothic New",sans-serif;font-size:.9rem;transition:background .2s,color .2s,border-color .2s,transform .15s}
+.pv-chip:active{transform:scale(.95)}
+.pv-chip[aria-selected="true"]{background:#2f6bff;border-color:#2f6bff;color:#fff;box-shadow:0 6px 20px rgba(47,107,255,.45)}
+
+@media (min-width:760px){
+  .pv-top{padding-top:1.5rem}
+  .pv-hint{display:inline}
+  .pv-bottom{align-items:center;gap:1rem;padding-bottom:1.6rem}
+  .pv-facts{justify-content:center;flex-wrap:wrap;overflow:visible;max-width:90vw}
+  .pv-selector{justify-content:center;flex-wrap:wrap;overflow:visible;max-width:90vw}
+  .pv-chip{font-size:.95rem}
+}
+@media (max-height:480px){
+  .pv-name{font-size:1.4rem}
+  .pv-bottom{gap:.4rem;padding-top:.55rem}
+  .pv-fact-v{font-size:.82rem}
+  .pv-chip{min-height:38px}
+}
+@media (prefers-reduced-motion:reduce){.vinfo{animation:none}}
+`;
