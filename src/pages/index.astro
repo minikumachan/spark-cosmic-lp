@@ -1018,8 +1018,10 @@ const ACC: Record<string, string> = {
         let actx: AudioContext | null = null;
         let master: GainNode | null = null;
         let on = false;
+        const AudioCtor = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
         const init = () => {
-          actx = new AudioContext();
+          if (!AudioCtor) return;
+          actx = new AudioCtor();
           master = actx.createGain();
           master.gain.value = 0;
           master.connect(actx.destination);
@@ -1055,9 +1057,13 @@ const ACC: Record<string, string> = {
         };
         audioBtn.addEventListener("click", () => {
           if (!actx) init();
-          if (actx!.state === "suspended") actx!.resume();
+          if (!actx || !master) {
+            audioBtn.style.display = "none"; // 非対応環境ではボタンを隠す
+            return;
+          }
+          if (actx.state === "suspended") actx.resume();
           on = !on;
-          master!.gain.linearRampToValueAtTime(on ? 0.42 : 0, actx!.currentTime + 1.4);
+          master.gain.linearRampToValueAtTime(on ? 0.42 : 0, actx.currentTime + 1.4);
           audioBtn.setAttribute("aria-pressed", String(on));
           const lbl = audioBtn.querySelector(".audio-label");
           if (lbl) lbl.textContent = on ? "停止" : "宇宙の音";

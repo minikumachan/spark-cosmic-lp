@@ -79,5 +79,17 @@ export default defineConfig({
         resolvePath: (id) => new URL(`./public${id}`, import.meta.url),
       }),
     ],
+    build: {
+      rollupOptions: {
+        output: {
+          // three を独立チャンク化（大きく安定＝キャッシュ効率向上）。postprocessing も分離。
+          manualChunks(id) {
+            if (id.includes('node_modules/three/')) return 'three';
+            if (id.includes('postprocessing')) return 'postprocessing';
+            return undefined;
+          },
+        },
+      },
+    },
   },
 });

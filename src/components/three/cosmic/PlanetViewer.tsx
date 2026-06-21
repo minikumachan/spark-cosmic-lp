@@ -69,7 +69,7 @@ function ViewerPlanet({ p, pos }: { p: V; pos: THREE.Vector3 }) {
   return (
     <group position={pos} rotation={[0.25, 0, 0.08]}>
       <mesh ref={ref}>
-        <sphereGeometry args={[1, 160, 160]} />
+        <sphereGeometry args={[1, 128, 128]} />
         {p.sun ? (
           <meshBasicMaterial map={map} toneMapped={false} />
         ) : (
@@ -125,7 +125,7 @@ function ViewerEarth({ pos }: { pos: THREE.Vector3 }) {
   return (
     <group position={pos} rotation={[0.25, 0, 0.08]}>
       <mesh ref={earth}>
-        <sphereGeometry args={[1, 200, 200]} />
+        <sphereGeometry args={[1, 128, 128]} />
         <meshStandardMaterial map={day} normalMap={normal} normalScale={new THREE.Vector2(1, 1)} emissiveMap={lights} emissive={new THREE.Color("#ffd9a0")} emissiveIntensity={0.9} roughness={0.85} metalness={0.05} />
       </mesh>
       <mesh ref={clouds} scale={1.012}>

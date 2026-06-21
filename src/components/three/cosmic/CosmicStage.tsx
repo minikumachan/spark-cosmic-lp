@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { ScreenQuad, useTexture, PerformanceMonitor, Environment, Lightformer } from "@react-three/drei";
 import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
@@ -340,13 +340,17 @@ function Stars() {
     g.setAttribute("color", new THREE.BufferAttribute(col, 3));
     return g;
   };
+  const fine = useMemo(() => make(MOBILE ? 2400 : 5500, 28, 95, 0.16), []); // 細かい遠星（本物の星空の密度）
   const dense = useMemo(() => make(MOBILE ? 3000 : 7000, 20, 80, 0.3), []);
-  const bright = useMemo(() => make(MOBILE ? 150 : 360, 14, 55, 0.82), []);
-  useEffect(() => () => { dense.dispose(); bright.dispose(); }, [dense, bright]);
+  const bright = useMemo(() => make(MOBILE ? 150 : 340, 14, 55, 0.82), []);
+  useEffect(() => () => { fine.dispose(); dense.dispose(); bright.dispose(); }, [fine, dense, bright]);
   return (
     <>
+      <points geometry={fine}>
+        <pointsMaterial size={0.04} sizeAttenuation vertexColors transparent opacity={0.7} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
+      </points>
       <points geometry={dense}>
-        <pointsMaterial size={0.085} sizeAttenuation vertexColors transparent opacity={0.9} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
+        <pointsMaterial size={0.08} sizeAttenuation vertexColors transparent opacity={0.9} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
       </points>
       <points geometry={bright}>
         <pointsMaterial size={0.32} sizeAttenuation vertexColors transparent opacity={0.95} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
@@ -497,6 +501,8 @@ function softTexture(): THREE.Texture {
     ctx.fillRect(0, 0, 128, 128);
   }
   _soft = new THREE.CanvasTexture(c);
+  _soft.generateMipmaps = false; // スプライトは近似サイズ運用＝mipmap不要（軽量化・見た目不変）
+  _soft.minFilter = THREE.LinearFilter;
   return _soft;
 }
 
@@ -634,21 +640,24 @@ function Comet() {
 }
 
 // 天の川（銀河面に集中する濃い星の帯）
+// 天の川：銀河中心へ密度バイアスした星の帯＋流れる拡散光（本物のミルキーな帯）
 function MilkyWay() {
+  const tex = useMemo(() => softTexture(), []);
+  const center = Math.PI * 0.3; // 銀河中心の方向
   const geo = useMemo(() => {
-    const count = MOBILE ? 2600 : 6000;
-    const pos = new Float32Array(count * 3);
-    const col = new Float32Array(count * 3);
-    const c1 = new THREE.Color("#fff0d8"), c2 = new THREE.Color("#bcd0ff"), c3 = new THREE.Color("#ffd9b0");
-    const cs = [c1, c2, c3];
+    const count = MOBILE ? 3400 : 8000;
+    const pos = new Float32Array(count * 3), col = new Float32Array(count * 3);
+    const cs = [new THREE.Color("#fff0d8"), new THREE.Color("#bcd0ff"), new THREE.Color("#ffd9b0"), new THREE.Color("#ffe8c8")];
     for (let i = 0; i < count; i++) {
       const i3 = i * 3;
-      const ph = Math.random() * Math.PI * 2;
-      const r = 48 + Math.random() * 26;
-      const x = Math.cos(ph) * r, z = Math.sin(ph) * r;
-      const y = (Math.random() - 0.5) * 7 * Math.pow(Math.random(), 2); // 帯状に薄く
-      pos[i3] = x; pos[i3 + 1] = y; pos[i3 + 2] = z;
-      const c = cs[(Math.random() * cs.length) | 0].clone().multiplyScalar(0.35 + Math.random() * 0.5);
+      const ph = Math.random() < 0.45 ? center + (Math.random() - 0.5) * 2.0 : Math.random() * Math.PI * 2;
+      const r = 48 + Math.random() * 28;
+      pos[i3] = Math.cos(ph) * r;
+      pos[i3 + 1] = (Math.random() - 0.5) * 8 * Math.pow(Math.random(), 2);
+      pos[i3 + 2] = Math.sin(ph) * r;
+      const dC = Math.abs(((ph - center + Math.PI * 3) % (Math.PI * 2)) - Math.PI) / Math.PI; // 0(中心)..1
+      const b = (0.3 + (1 - dC) * 0.55) * (0.5 + Math.random() * 0.7);
+      const c = cs[(Math.random() * cs.length) | 0].clone().multiplyScalar(b);
       col[i3] = c.r; col[i3 + 1] = c.g; col[i3 + 2] = c.b;
     }
     const g = new THREE.BufferGeometry();
@@ -656,12 +665,31 @@ function MilkyWay() {
     g.setAttribute("color", new THREE.BufferAttribute(col, 3));
     return g;
   }, []);
+  const glows = useMemo(() => {
+    const n = MOBILE ? 3 : 5; // 加算オーバードロー抑制（フィルレート軽量化）
+    return Array.from({ length: n }, (_, i) => {
+      const a = (i / n) * Math.PI * 2;
+      const near = 1 - Math.abs(((a - center + Math.PI * 3) % (Math.PI * 2)) - Math.PI) / Math.PI;
+      return {
+        pos: [Math.cos(a) * 56, Math.sin(a * 2) * 1.5, Math.sin(a) * 56] as [number, number, number],
+        rot: a + Math.PI / 2,
+        w: 18 + near * 16,
+        o: 0.04 + near * 0.07,
+        c: near > 0.6 ? "#5b4a72" : "#383650",
+      };
+    });
+  }, [center]);
   useEffect(() => () => geo.dispose(), [geo]);
   return (
     <group rotation={[0.5, 0.3, 0.62]}>
       <points geometry={geo}>
-        <pointsMaterial size={0.11} sizeAttenuation vertexColors transparent opacity={0.82} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
+        <pointsMaterial size={0.085} sizeAttenuation vertexColors transparent opacity={0.85} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
       </points>
+      {glows.map((g, i) => (
+        <sprite key={i} position={g.pos} scale={[g.w, 5, 1]}>
+          <spriteMaterial map={tex} color={g.c} rotation={g.rot} transparent opacity={g.o} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
+        </sprite>
+      ))}
     </group>
   );
 }
@@ -801,6 +829,11 @@ function Galaxy() {
       <points geometry={geometry}>
         <shaderMaterial ref={mat} vertexShader={galaxyVert} fragmentShader={galaxyFrag} uniforms={uniforms} blending={THREE.AdditiveBlending} depthWrite={false} transparent />
       </points>
+      {/* 円盤の拡散光（星の間のミルキーな銀河光・円盤面に水平配置） */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[32, 32]} />
+        <meshBasicMaterial map={tex} color="#6a5a8c" transparent opacity={0.13} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} side={THREE.DoubleSide} />
+      </mesh>
       {/* 銀河中心の輝き（バルジのグロー） */}
       <sprite scale={[8, 8, 1]}>
         <spriteMaterial map={tex} color="#ffe6b0" transparent opacity={0.55} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
@@ -824,9 +857,26 @@ const STOPS: { sel: string; p: [number, number, number]; l: [number, number, num
 ];
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
+// スクロールが閾値を超えたら latch（重い銀河/カイパーを終盤接近時のみマウント＝中盤までGPU軽量）
+function useScrollPast(frac: number) {
+  const [past, setPast] = useState(false);
+  useEffect(() => {
+    if (past) return;
+    const onScroll = () => {
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      if (max > 0 && window.scrollY / max > frac) setPast(true);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [past, frac]);
+  return past;
+}
+
 function Rig() {
   const centers = useRef<number[]>([]);
   const scrollY = useRef(0);
+  const showGalaxy = useScrollPast(0.32); // 銀河は終盤接近時のみ（中盤までは遠方で不可視）
   useEffect(() => {
     const measure = () => {
       centers.current = STOPS.map((s) => {
@@ -893,9 +943,9 @@ function Rig() {
       <Comet />
       <Suspense fallback={null}>
         <AsteroidBelt />
-        <KuiperBelt />
+        {showGalaxy && <KuiperBelt />}
       </Suspense>
-      <Galaxy />
+      {showGalaxy && <Galaxy />}
       <Suspense fallback={null}>
         <Earth />
       </Suspense>
@@ -910,6 +960,17 @@ function Rig() {
       )}
     </>
   );
+}
+
+// テクスチャ404やWebGLロストでCanvasが落ちても、CSSのcosmic-bgへ安全に退避
+class CanvasErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  render() {
+    return this.state.hasError ? null : this.props.children;
+  }
 }
 
 export default function CosmicStage() {
@@ -931,16 +992,18 @@ export default function CosmicStage() {
   }, []);
   if (!enabled) return null;
   return (
-    <Canvas
-      aria-hidden="true"
-      tabIndex={-1}
-      style={{ position: "fixed", inset: 0 }}
-      dpr={MOBILE ? [1, 1] : [1, 1.5]}
-      frameloop={active ? "always" : "never"}
-      camera={{ position: [0, 0.2, 3.6], fov: 50 }}
-      gl={{ antialias: !MOBILE, alpha: false, stencil: false, powerPreference: "high-performance" }}
-    >
-      <Rig />
-    </Canvas>
+    <CanvasErrorBoundary>
+      <Canvas
+        aria-hidden="true"
+        tabIndex={-1}
+        style={{ position: "fixed", inset: 0 }}
+        dpr={MOBILE ? [1, 1] : [1, 1.5]}
+        frameloop={active ? "always" : "never"}
+        camera={{ position: [0, 0.2, 3.6], fov: 50 }}
+        gl={{ antialias: !MOBILE, alpha: false, stencil: false, powerPreference: "high-performance" }}
+      >
+        <Rig />
+      </Canvas>
+    </CanvasErrorBoundary>
   );
 }
