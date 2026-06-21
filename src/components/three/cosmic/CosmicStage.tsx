@@ -355,87 +355,98 @@ function Stars() {
   );
 }
 
-// 多周波ノイズで凹凸させた不規則な岩ジオメトリ（球ベース＝UV良好。表面ディテールは法線マップが担うので低ポリ）
-function makeRockGeometry() {
-  const g = new THREE.SphereGeometry(1, 18, 14);
+// 多周波ノイズで凹凸させた不規則な岩ジオメトリ（球ベース・高ポリ・seedで形を変える）
+function makeRockGeometry(seed: number) {
+  const g = new THREE.SphereGeometry(1, 26, 20);
   const p = g.attributes.position;
   const v = new THREE.Vector3();
+  const s = seed * 1.7;
   for (let i = 0; i < p.count; i++) {
     v.fromBufferAttribute(p, i);
     const u = v.clone().normalize();
     const d =
       1 +
-      0.26 * Math.sin(u.x * 2.8 + 0.5) +
-      0.2 * Math.sin(u.y * 2.6 + 1.3) +
-      0.18 * Math.sin(u.z * 3.1 + 2.1) +
-      0.12 * Math.sin(u.x * 6.0 + u.y * 5.0) +
-      0.09 * Math.sin(u.z * 8.0 - u.x * 6.0) +
-      0.06 * Math.sin(u.y * 12.0 + u.z * 10.0);
-    v.copy(u).multiplyScalar(Math.max(0.55, d));
+      0.3 * Math.sin(u.x * 2.6 + 0.5 + s) +
+      0.24 * Math.sin(u.y * 2.4 + 1.3 + s) +
+      0.2 * Math.sin(u.z * 2.9 + 2.1 + s) +
+      0.15 * Math.sin(u.x * 5.5 + u.y * 4.5 + s) +
+      0.11 * Math.sin(u.z * 7.5 - u.x * 5.5 + s) +
+      0.08 * Math.sin(u.y * 11.0 + u.z * 9.0 + s) +
+      0.05 * Math.sin(u.x * 16.0 - u.z * 13.0 + s);
+    v.copy(u).multiplyScalar(Math.max(0.48, d));
     p.setXYZ(i, v.x, v.y, v.z);
   }
   g.computeVertexNormals();
   return g;
 }
 
-// 岩の帯（InstancedMesh：不規則な岩＋非一様スケール＋色のばらつき）
-function RockBelt({
-  count, pos, rot, radMin, radMax, yJit, sMin, sMax, tints, spin,
-}: {
-  count: number; pos: [number, number, number]; rot: [number, number, number];
+type RockProps = {
+  pos: [number, number, number]; rot: [number, number, number];
   radMin: number; radMax: number; yJit: number; sMin: number; sMax: number;
   tints: [number, number, number][]; spin: number;
-}) {
-  const grp = useRef<THREE.Group>(null);
+};
+// 1つのバリアント（固有形状の岩を InstancedMesh で多数配置）
+function RockVariant({
+  geo, map, nrm, n, radMin, radMax, yJit, sMin, sMax, tints,
+}: { geo: THREE.BufferGeometry; map: THREE.Texture; nrm: THREE.Texture; n: number } & Omit<RockProps, "pos" | "rot" | "spin">) {
   const inst = useRef<THREE.InstancedMesh>(null);
-  const geo = useMemo(makeRockGeometry, []);
-  // 月の岩盤テクスチャ＋法線マップを流用＝クレーター/凹凸の表面ディテール
-  const [map, nrm] = useTexture(["/assets/planet/moon.webp", "/assets/planet/moon_n.webp"]);
-  useMemo(() => {
-    map.colorSpace = THREE.SRGBColorSpace;
-    map.anisotropy = 4;
-    nrm.anisotropy = 4;
-  }, [map, nrm]);
   useEffect(() => {
     if (!inst.current) return;
     const dummy = new THREE.Object3D();
     const col = new THREE.Color();
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < n; i++) {
       const ang = Math.random() * Math.PI * 2, rad = radMin + Math.random() * (radMax - radMin);
       dummy.position.set(Math.cos(ang) * rad, (Math.random() - 0.5) * yJit, Math.sin(ang) * rad);
       dummy.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
-      const s = sMin + Math.random() * (sMax - sMin);
-      dummy.scale.set(s * (0.6 + Math.random() * 0.7), s * (0.6 + Math.random() * 0.7), s * (0.6 + Math.random() * 0.7));
+      const sc = sMin + Math.random() * (sMax - sMin);
+      dummy.scale.set(sc * (0.55 + Math.random() * 0.8), sc * (0.55 + Math.random() * 0.8), sc * (0.55 + Math.random() * 0.8));
       dummy.updateMatrix();
       inst.current.setMatrixAt(i, dummy.matrix);
-      const t = tints[(Math.random() * tints.length) | 0], k = 0.7 + Math.random() * 0.5;
+      const t = tints[(Math.random() * tints.length) | 0], k = 0.65 + Math.random() * 0.55;
       col.setRGB(t[0] * k, t[1] * k, t[2] * k);
       inst.current.setColorAt(i, col);
     }
     inst.current.instanceMatrix.needsUpdate = true;
     if (inst.current.instanceColor) inst.current.instanceColor.needsUpdate = true;
-  }, [count, radMin, radMax, yJit, sMin, sMax, tints]);
-  useEffect(() => () => geo.dispose(), [geo]);
+  }, [n, radMin, radMax, yJit, sMin, sMax, tints]);
+  return (
+    <instancedMesh ref={inst} args={[geo, undefined, n]}>
+      <meshStandardMaterial map={map} normalMap={nrm} normalScale={new THREE.Vector2(2.6, 2.6)} roughness={0.96} metalness={0.02} />
+    </instancedMesh>
+  );
+}
+// 岩の帯：3つの固有形状を混在＝石一つ一つが別形状
+function RockBelt({ count, pos, rot, spin, ...rest }: { count: number } & RockProps) {
+  const grp = useRef<THREE.Group>(null);
+  const [map, nrm] = useTexture(["/assets/planet/moon.webp", "/assets/planet/moon_n.webp"]);
+  useMemo(() => {
+    map.colorSpace = THREE.SRGBColorSpace;
+    map.anisotropy = 8;
+    nrm.anisotropy = 8;
+  }, [map, nrm]);
+  const geos = useMemo(() => [makeRockGeometry(0), makeRockGeometry(1.3), makeRockGeometry(2.7)], []);
+  useEffect(() => () => geos.forEach((g) => g.dispose()), [geos]);
   useFrame((_, d) => { if (grp.current) grp.current.rotation.y += d * spin; });
+  const per = Math.ceil(count / geos.length);
   return (
     <group ref={grp} position={pos} rotation={rot}>
-      <instancedMesh ref={inst} args={[geo, undefined, count]}>
-        <meshStandardMaterial map={map} normalMap={nrm} normalScale={new THREE.Vector2(1.8, 1.8)} roughness={0.95} metalness={0.02} />
-      </instancedMesh>
+      {geos.map((g, i) => (
+        <RockVariant key={i} geo={g} map={map} nrm={nrm} n={per} {...rest} />
+      ))}
     </group>
   );
 }
 function AsteroidBelt() {
   return (
     <RockBelt
-      count={MOBILE ? 80 : 175}
+      count={MOBILE ? 70 : 135}
       pos={[-9.5, -1, -15]}
       rot={[0.34, 0, 0.08]}
       radMin={6}
       radMax={14}
       yJit={1.4}
       sMin={0.04}
-      sMax={0.16}
+      sMax={0.17}
       spin={0.03}
       tints={[[0.54, 0.49, 0.42], [0.46, 0.42, 0.38], [0.6, 0.52, 0.44], [0.4, 0.38, 0.36]]}
     />
@@ -694,7 +705,7 @@ function ConstellationLines() {
 function KuiperBelt() {
   return (
     <RockBelt
-      count={MOBILE ? 60 : 140}
+      count={MOBILE ? 50 : 95}
       pos={[-20, 4, -38]}
       rot={[0.3, 0, 0.05]}
       radMin={26}
@@ -740,21 +751,41 @@ varying vec3 vColor;
 void main(){ float dd=distance(gl_PointCoord,vec2(0.5)); float s=1.0-smoothstep(0.0,0.5,dd); s=pow(s,2.2); gl_FragColor=vec4(vColor*s,s); }`;
 function Galaxy() {
   const mat = useRef<THREE.ShaderMaterial>(null);
+  const tex = useMemo(() => softTexture(), []);
   const geometry = useMemo(() => {
-    const count = MOBILE ? 9000 : 30000, radius = 6, branches = 4, spin = 1.0, randomness = 0.45, power = 2.6;
-    const inside = new THREE.Color("#ffb066"), mid = new THREE.Color("#c84dff"), outside = new THREE.Color("#4d7bff");
+    // 天の川級の規模：中心バルジ＋多腕の円盤＋HII領域
+    const count = MOBILE ? 24000 : 72000;
+    const radius = 11, branches = 5, spin = 1.18, randomness = 0.42, power = 2.9;
+    const cCore = new THREE.Color("#fff3d2"), cInner = new THREE.Color("#ffb060"),
+      cMid = new THREE.Color("#d24dff"), cOuter = new THREE.Color("#4d7bff"), cPink = new THREE.Color("#ff5fa8");
     const pos = new Float32Array(count * 3), col = new Float32Array(count * 3), sc = new Float32Array(count);
     const rnd = () => Math.pow(Math.random(), 3) * (Math.random() < 0.5 ? 1 : -1);
+    const bulge = Math.floor(count * 0.2);
+    const c = new THREE.Color();
     for (let i = 0; i < count; i++) {
-      const i3 = i * 3, r = Math.pow(Math.random(), power) * radius;
-      const br = ((i % branches) / branches) * Math.PI * 2, sa = r * spin;
-      pos[i3] = Math.cos(br + sa) * r + rnd() * randomness * r;
-      pos[i3 + 1] = rnd() * randomness * r * 0.5;
-      pos[i3 + 2] = Math.sin(br + sa) * r + rnd() * randomness * r;
-      const c = inside.clone(), t = r / radius;
-      c.lerp(mid, Math.min(t * 1.7, 1)); c.lerp(outside, t);
+      const i3 = i * 3;
+      if (i < bulge) {
+        // 中心バルジ（球状・密・明るい暖色）
+        const r = Math.pow(Math.random(), 2.4) * radius * 0.24;
+        const th = Math.acos(2 * Math.random() - 1), ph = Math.random() * Math.PI * 2;
+        pos[i3] = r * Math.sin(th) * Math.cos(ph);
+        pos[i3 + 1] = r * Math.cos(th) * 0.65;
+        pos[i3 + 2] = r * Math.sin(th) * Math.sin(ph);
+        c.copy(cCore).lerp(cInner, Math.random() * 0.55);
+        sc[i] = Math.random() * 1.1 + 0.55;
+      } else {
+        // 渦巻きの腕（薄い円盤）
+        const r = Math.pow(Math.random(), power) * radius;
+        const br = ((i % branches) / branches) * Math.PI * 2, sa = r * spin;
+        pos[i3] = Math.cos(br + sa) * r + rnd() * randomness * r;
+        pos[i3 + 1] = rnd() * randomness * r * 0.32;
+        pos[i3 + 2] = Math.sin(br + sa) * r + rnd() * randomness * r;
+        const t = r / radius;
+        c.copy(cInner).lerp(cMid, Math.min(t * 1.8, 1)).lerp(cOuter, t);
+        if (Math.random() < 0.05) c.copy(cPink); // 散在するHII領域
+        sc[i] = Math.random() * 0.7 + 0.22;
+      }
       col[i3] = c.r; col[i3 + 1] = c.g; col[i3 + 2] = c.b;
-      sc[i] = Math.random() * 0.9 + 0.3;
     }
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
@@ -763,12 +794,21 @@ function Galaxy() {
     return g;
   }, []);
   useEffect(() => () => geometry.dispose(), [geometry]);
-  const uniforms = useMemo(() => ({ uTime: { value: 0 }, uSize: { value: 36 } }), []);
+  const uniforms = useMemo(() => ({ uTime: { value: 0 }, uSize: { value: 34 } }), []);
   useFrame((_, d) => { if (mat.current) mat.current.uniforms.uTime.value += d; });
   return (
-    <points geometry={geometry} position={[GX, GY, GZ]} rotation={[0.52, 0.4, 0.08]} scale={1.5}>
-      <shaderMaterial ref={mat} vertexShader={galaxyVert} fragmentShader={galaxyFrag} uniforms={uniforms} blending={THREE.AdditiveBlending} depthWrite={false} transparent />
-    </points>
+    <group position={[GX, GY, GZ]} rotation={[0.52, 0.4, 0.08]} scale={1.6}>
+      <points geometry={geometry}>
+        <shaderMaterial ref={mat} vertexShader={galaxyVert} fragmentShader={galaxyFrag} uniforms={uniforms} blending={THREE.AdditiveBlending} depthWrite={false} transparent />
+      </points>
+      {/* 銀河中心の輝き（バルジのグロー） */}
+      <sprite scale={[8, 8, 1]}>
+        <spriteMaterial map={tex} color="#ffe6b0" transparent opacity={0.55} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
+      </sprite>
+      <sprite scale={[24, 16, 1]}>
+        <spriteMaterial map={tex} color="#6a5aff" transparent opacity={0.06} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
+      </sprite>
+    </group>
   );
 }
 
@@ -780,7 +820,7 @@ const STOPS: { sel: string; p: [number, number, number]; l: [number, number, num
   { sel: "#strengths", p: [-8.8, 5.4, -9.5], l: [-11.5, 4.2, -18.5] }, // 木星
   { sel: "#pricing", p: [-12.8, -0.6, -18], l: [-15.5, -2, -26] }, // 土星
   { sel: "#faq", p: [-16.4, 6.8, -25], l: [-19, 5.6, -33] }, // 海王星
-  { sel: "#contact", p: [GX + 2.5, GY + 4, GZ + 12], l: [GX, GY, GZ] }, // 銀河
+  { sel: "#contact", p: [GX + 4, GY + 7, GZ + 25], l: [GX, GY, GZ] }, // 天の川級の銀河（全景）
 ];
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
