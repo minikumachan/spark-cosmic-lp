@@ -61,9 +61,18 @@ function ViewerPlanet({ p }: { p: V }) {
   const map = useTexture(p.src);
   useMemo(() => { map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 16; }, [map]);
   const u = useMemo(() => ({ uColor: { value: new THREE.Color(p.atmo ?? "#88aaff") } }), [p.atmo]);
-  useFrame((_, d) => { if (ref.current) ref.current.rotation.y += d * 0.06; });
+  const grp = useRef<THREE.Group>(null);
+  const t = useRef(0);
+  useFrame((_, d) => {
+    // 入場アニメ：小さく＋速いスピンから easeOut で実物大へ（マテリアライズ遷移）
+    if (t.current < 1) {
+      t.current = Math.min(1, t.current + d * 2.0);
+      if (grp.current) grp.current.scale.setScalar(1 - Math.pow(1 - t.current, 3));
+    }
+    if (ref.current) ref.current.rotation.y += d * (0.06 + (1 - t.current) * 0.55);
+  });
   return (
-    <group rotation={[0.25, 0, 0.08]}>
+    <group ref={grp} scale={0.001} rotation={[0.25, 0, 0.08]}>
       <mesh ref={ref}>
         <sphereGeometry args={[1, 160, 160]} />
         {p.sun ? (
@@ -112,12 +121,18 @@ function ViewerEarth() {
     for (const t of [day, normal, clud, lights]) t.anisotropy = 16;
   }, [day, normal, clud, lights]);
   const u = useMemo(() => ({ uColor: { value: new THREE.Color("#5fb8ff") } }), []);
+  const grp = useRef<THREE.Group>(null);
+  const t = useRef(0);
   useFrame((_, d) => {
-    if (earth.current) earth.current.rotation.y += d * 0.05;
+    if (t.current < 1) {
+      t.current = Math.min(1, t.current + d * 2.0);
+      if (grp.current) grp.current.scale.setScalar(1 - Math.pow(1 - t.current, 3));
+    }
+    if (earth.current) earth.current.rotation.y += d * (0.05 + (1 - t.current) * 0.5);
     if (clouds.current) clouds.current.rotation.y += d * 0.068;
   });
   return (
-    <group rotation={[0.25, 0, 0.08]}>
+    <group ref={grp} scale={0.001} rotation={[0.25, 0, 0.08]}>
       <mesh ref={earth}>
         <sphereGeometry args={[1, 200, 200]} />
         <meshStandardMaterial map={day} normalMap={normal} normalScale={new THREE.Vector2(1, 1)} emissiveMap={lights} emissive={new THREE.Color("#ffd9a0")} emissiveIntensity={0.9} roughness={0.85} metalness={0.05} />
@@ -207,6 +222,7 @@ export default function PlanetViewer() {
   const p = PLANETS[idx];
   return (
     <div role="dialog" aria-modal="true" aria-label="惑星鑑賞" style={S.overlay}>
+      <style>{`@keyframes vinfoIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}.vinfo{animation:vinfoIn .55s cubic-bezier(.16,1,.3,1) both}.vchip{transition:all .25s cubic-bezier(.16,1,.3,1)}`}</style>
       <Canvas camera={{ position: [0, 0.3, 4], fov: 45 }} dpr={[1, 2]} gl={{ antialias: true, alpha: false }} style={{ position: "absolute", inset: 0 }}>
         <color attach="background" args={["#04050b"]} />
         <ambientLight intensity={0.05} />
@@ -230,7 +246,7 @@ export default function PlanetViewer() {
         <button onClick={() => setOpen(false)} style={S.close} aria-label="閉じる">✕ 閉じる</button>
       </div>
 
-      <div style={S.info}>
+      <div style={S.info} className="vinfo" key={p.key}>
         <p style={S.en}>{p.en}</p>
         <h2 style={S.name}>{p.name}</h2>
         <dl style={S.facts}>

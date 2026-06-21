@@ -355,21 +355,23 @@ function Stars() {
   );
 }
 
-// ノイズで凹凸させた不規則な岩ジオメトリ（小惑星らしいゴツゴツ）
+// 多周波ノイズで凹凸させた不規則な岩ジオメトリ（球ベース＝UV良好。表面ディテールは法線マップが担うので低ポリ）
 function makeRockGeometry() {
-  const g = new THREE.IcosahedronGeometry(1, 2);
+  const g = new THREE.SphereGeometry(1, 18, 14);
   const p = g.attributes.position;
   const v = new THREE.Vector3();
   for (let i = 0; i < p.count; i++) {
     v.fromBufferAttribute(p, i);
+    const u = v.clone().normalize();
     const d =
       1 +
-      0.22 * Math.sin(v.x * 3.1 + 0.5) +
-      0.17 * Math.sin(v.y * 2.7 + 1.3) +
-      0.15 * Math.sin(v.z * 3.4 + 2.1) +
-      0.1 * Math.sin(v.x * 7.0 + v.y * 6.0) +
-      0.07 * Math.sin(v.z * 9.0 - v.x * 5.0);
-    v.normalize().multiplyScalar(d);
+      0.26 * Math.sin(u.x * 2.8 + 0.5) +
+      0.2 * Math.sin(u.y * 2.6 + 1.3) +
+      0.18 * Math.sin(u.z * 3.1 + 2.1) +
+      0.12 * Math.sin(u.x * 6.0 + u.y * 5.0) +
+      0.09 * Math.sin(u.z * 8.0 - u.x * 6.0) +
+      0.06 * Math.sin(u.y * 12.0 + u.z * 10.0);
+    v.copy(u).multiplyScalar(Math.max(0.55, d));
     p.setXYZ(i, v.x, v.y, v.z);
   }
   g.computeVertexNormals();
@@ -387,6 +389,13 @@ function RockBelt({
   const grp = useRef<THREE.Group>(null);
   const inst = useRef<THREE.InstancedMesh>(null);
   const geo = useMemo(makeRockGeometry, []);
+  // 月の岩盤テクスチャ＋法線マップを流用＝クレーター/凹凸の表面ディテール
+  const [map, nrm] = useTexture(["/assets/planet/moon.webp", "/assets/planet/moon_n.webp"]);
+  useMemo(() => {
+    map.colorSpace = THREE.SRGBColorSpace;
+    map.anisotropy = 4;
+    nrm.anisotropy = 4;
+  }, [map, nrm]);
   useEffect(() => {
     if (!inst.current) return;
     const dummy = new THREE.Object3D();
@@ -411,7 +420,7 @@ function RockBelt({
   return (
     <group ref={grp} position={pos} rotation={rot}>
       <instancedMesh ref={inst} args={[geo, undefined, count]}>
-        <meshStandardMaterial roughness={0.97} metalness={0.02} flatShading />
+        <meshStandardMaterial map={map} normalMap={nrm} normalScale={new THREE.Vector2(1.8, 1.8)} roughness={0.95} metalness={0.02} />
       </instancedMesh>
     </group>
   );
@@ -842,8 +851,10 @@ function Rig() {
       </Suspense>
       <ShootingStars />
       <Comet />
-      <AsteroidBelt />
-      <KuiperBelt />
+      <Suspense fallback={null}>
+        <AsteroidBelt />
+        <KuiperBelt />
+      </Suspense>
       <Galaxy />
       <Suspense fallback={null}>
         <Earth />
