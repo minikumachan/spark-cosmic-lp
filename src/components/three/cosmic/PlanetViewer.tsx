@@ -134,8 +134,9 @@ function ViewerEarth() {
   );
 }
 
-// 鑑賞中の背景に「宇宙の中にいる」文脈（遠方の太陽＋他の天体）
-function ViewerBackdrop() {
+// 鑑賞中の背景に「宇宙の中にいる」文脈（遠方の太陽＋他の天体）。
+// 現在見ている天体と重複する背景天体は隠す（太陽が二つに見える不具合の修正）。
+function ViewerBackdrop({ currentKey }: { currentKey: string }) {
   const [sun, jup, nep] = useTexture([
     "/assets/planet/sun.webp",
     "/assets/planet/jupiter.webp",
@@ -146,24 +147,30 @@ function ViewerBackdrop() {
   }, [sun, jup, nep]);
   return (
     <>
-      <group position={[-24, 10, -40]}>
-        <mesh>
-          <sphereGeometry args={[2.4, 32, 32]} />
-          <meshBasicMaterial map={sun} toneMapped={false} />
+      {currentKey !== "sun" && (
+        <group position={[-24, 10, -40]}>
+          <mesh>
+            <sphereGeometry args={[2.4, 32, 32]} />
+            <meshBasicMaterial map={sun} toneMapped={false} />
+          </mesh>
+          <mesh scale={1.7}>
+            <sphereGeometry args={[2.4, 24, 24]} />
+            <meshBasicMaterial color="#ffd98a" transparent opacity={0.16} blending={THREE.AdditiveBlending} depthWrite={false} />
+          </mesh>
+        </group>
+      )}
+      {currentKey !== "jupiter" && (
+        <mesh position={[18, -6, -30]} rotation={[0.2, 0, 0.1]}>
+          <sphereGeometry args={[1.5, 48, 48]} />
+          <meshStandardMaterial map={jup} roughness={0.6} />
         </mesh>
-        <mesh scale={1.7}>
-          <sphereGeometry args={[2.4, 24, 24]} />
-          <meshBasicMaterial color="#ffd98a" transparent opacity={0.16} blending={THREE.AdditiveBlending} depthWrite={false} />
+      )}
+      {currentKey !== "neptune" && (
+        <mesh position={[-14, -8, -24]} rotation={[0.25, 0, 0]}>
+          <sphereGeometry args={[0.85, 48, 48]} />
+          <meshStandardMaterial map={nep} roughness={0.55} />
         </mesh>
-      </group>
-      <mesh position={[18, -6, -30]} rotation={[0.2, 0, 0.1]}>
-        <sphereGeometry args={[1.5, 48, 48]} />
-        <meshStandardMaterial map={jup} roughness={0.6} />
-      </mesh>
-      <mesh position={[-14, -8, -24]} rotation={[0.25, 0, 0]}>
-        <sphereGeometry args={[0.85, 48, 48]} />
-        <meshStandardMaterial map={nep} roughness={0.55} />
-      </mesh>
+      )}
     </>
   );
 }
@@ -207,7 +214,7 @@ export default function PlanetViewer() {
         <directionalLight position={[-5, -1, -4]} intensity={0.35} color="#6f9cff" />
         <Stars radius={80} depth={50} count={4000} factor={3.5} saturation={0.5} fade speed={0.3} />
         <Suspense fallback={null}>
-          <ViewerBackdrop />
+          <ViewerBackdrop currentKey={p.key} />
         </Suspense>
         <Suspense fallback={null}>
           {p.key === "earth" ? <ViewerEarth /> : <ViewerPlanet p={p} key={p.key} />}

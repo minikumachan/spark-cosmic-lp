@@ -69,6 +69,8 @@ function securityHeaders() {
 
 export default defineConfig({
   site: 'https://spark-lp.pages.dev',
+  // dev ツールバーは下部に出て邪魔なので無効（本番ビルドには元々含まれない）
+  devToolbar: { enabled: false },
   integrations: [react(), sitemap(), securityHeaders()],
   vite: {
     plugins: [

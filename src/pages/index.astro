@@ -115,6 +115,17 @@ const ACC: Record<string, string> = {
       .skip-link:focus {
         top: 0;
       }
+      /* 日本語の改行を自然に（禁則処理＋文節区切り。非対応ブラウザは通常折返し） */
+      .headline,
+      .section-head h2,
+      .svc .t,
+      .wt,
+      .pname,
+      .chead,
+      .lead {
+        line-break: strict;
+        word-break: auto-phrase;
+      }
       .content {
         position: relative;
         z-index: 1;
@@ -561,12 +572,15 @@ const ACC: Record<string, string> = {
         font-weight: 800;
         font-size: clamp(1.8rem, 3.2vw, 2.6rem);
         letter-spacing: -0.02em;
+        white-space: nowrap;
       }
       .pper {
+        display: block;
         font-size: 0.5em;
         color: #9aa1cb;
-        margin-left: 0.4rem;
+        margin-top: 0.3rem;
         font-weight: 400;
+        white-space: normal;
       }
       .pfeat {
         list-style: none;

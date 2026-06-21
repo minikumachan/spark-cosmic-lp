@@ -355,32 +355,81 @@ function Stars() {
   );
 }
 
-// 小惑星帯（InstancedMesh・静的行列＋親グループを回転＝安価）
-function AsteroidBelt() {
-  const count = MOBILE ? 80 : 175;
+// ノイズで凹凸させた不規則な岩ジオメトリ（小惑星らしいゴツゴツ）
+function makeRockGeometry() {
+  const g = new THREE.IcosahedronGeometry(1, 2);
+  const p = g.attributes.position;
+  const v = new THREE.Vector3();
+  for (let i = 0; i < p.count; i++) {
+    v.fromBufferAttribute(p, i);
+    const d =
+      1 +
+      0.22 * Math.sin(v.x * 3.1 + 0.5) +
+      0.17 * Math.sin(v.y * 2.7 + 1.3) +
+      0.15 * Math.sin(v.z * 3.4 + 2.1) +
+      0.1 * Math.sin(v.x * 7.0 + v.y * 6.0) +
+      0.07 * Math.sin(v.z * 9.0 - v.x * 5.0);
+    v.normalize().multiplyScalar(d);
+    p.setXYZ(i, v.x, v.y, v.z);
+  }
+  g.computeVertexNormals();
+  return g;
+}
+
+// 岩の帯（InstancedMesh：不規則な岩＋非一様スケール＋色のばらつき）
+function RockBelt({
+  count, pos, rot, radMin, radMax, yJit, sMin, sMax, tints, spin,
+}: {
+  count: number; pos: [number, number, number]; rot: [number, number, number];
+  radMin: number; radMax: number; yJit: number; sMin: number; sMax: number;
+  tints: [number, number, number][]; spin: number;
+}) {
   const grp = useRef<THREE.Group>(null);
   const inst = useRef<THREE.InstancedMesh>(null);
+  const geo = useMemo(makeRockGeometry, []);
   useEffect(() => {
     if (!inst.current) return;
     const dummy = new THREE.Object3D();
+    const col = new THREE.Color();
     for (let i = 0; i < count; i++) {
-      const ang = Math.random() * Math.PI * 2, rad = 6 + Math.random() * 8;
-      dummy.position.set(Math.cos(ang) * rad, (Math.random() - 0.5) * 1.4, Math.sin(ang) * rad);
+      const ang = Math.random() * Math.PI * 2, rad = radMin + Math.random() * (radMax - radMin);
+      dummy.position.set(Math.cos(ang) * rad, (Math.random() - 0.5) * yJit, Math.sin(ang) * rad);
       dummy.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
-      dummy.scale.setScalar(0.04 + Math.random() * 0.12);
+      const s = sMin + Math.random() * (sMax - sMin);
+      dummy.scale.set(s * (0.6 + Math.random() * 0.7), s * (0.6 + Math.random() * 0.7), s * (0.6 + Math.random() * 0.7));
       dummy.updateMatrix();
       inst.current.setMatrixAt(i, dummy.matrix);
+      const t = tints[(Math.random() * tints.length) | 0], k = 0.7 + Math.random() * 0.5;
+      col.setRGB(t[0] * k, t[1] * k, t[2] * k);
+      inst.current.setColorAt(i, col);
     }
     inst.current.instanceMatrix.needsUpdate = true;
-  }, [count]);
-  useFrame((_, d) => { if (grp.current) grp.current.rotation.y += d * 0.03; });
+    if (inst.current.instanceColor) inst.current.instanceColor.needsUpdate = true;
+  }, [count, radMin, radMax, yJit, sMin, sMax, tints]);
+  useEffect(() => () => geo.dispose(), [geo]);
+  useFrame((_, d) => { if (grp.current) grp.current.rotation.y += d * spin; });
   return (
-    <group ref={grp} position={[-9.5, -1, -15]} rotation={[0.34, 0, 0.08]}>
-      <instancedMesh ref={inst} args={[undefined, undefined, count]}>
-        <dodecahedronGeometry args={[1, 0]} />
-        <meshStandardMaterial color="#8a7d6b" roughness={1} metalness={0} flatShading />
+    <group ref={grp} position={pos} rotation={rot}>
+      <instancedMesh ref={inst} args={[geo, undefined, count]}>
+        <meshStandardMaterial roughness={0.97} metalness={0.02} flatShading />
       </instancedMesh>
     </group>
+  );
+}
+function AsteroidBelt() {
+  return (
+    <RockBelt
+      count={MOBILE ? 80 : 175}
+      pos={[-9.5, -1, -15]}
+      rot={[0.34, 0, 0.08]}
+      radMin={6}
+      radMax={14}
+      yJit={1.4}
+      sMin={0.04}
+      sMax={0.16}
+      spin={0.03}
+      tints={[[0.54, 0.49, 0.42], [0.46, 0.42, 0.38], [0.6, 0.52, 0.44], [0.4, 0.38, 0.36]]}
+    />
   );
 }
 
@@ -634,30 +683,19 @@ function ConstellationLines() {
 
 // カイパーベルト（海王星以遠の氷天体の帯）
 function KuiperBelt() {
-  const count = MOBILE ? 60 : 140;
-  const grp = useRef<THREE.Group>(null);
-  const inst = useRef<THREE.InstancedMesh>(null);
-  useEffect(() => {
-    if (!inst.current) return;
-    const dummy = new THREE.Object3D();
-    for (let i = 0; i < count; i++) {
-      const ang = Math.random() * Math.PI * 2, rad = 26 + Math.random() * 14;
-      dummy.position.set(Math.cos(ang) * rad, (Math.random() - 0.5) * 2.5, Math.sin(ang) * rad);
-      dummy.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
-      dummy.scale.setScalar(0.05 + Math.random() * 0.12);
-      dummy.updateMatrix();
-      inst.current.setMatrixAt(i, dummy.matrix);
-    }
-    inst.current.instanceMatrix.needsUpdate = true;
-  }, [count]);
-  useFrame((_, d) => { if (grp.current) grp.current.rotation.y += d * 0.008; });
   return (
-    <group ref={grp} position={[-20, 4, -38]} rotation={[0.3, 0, 0.05]}>
-      <instancedMesh ref={inst} args={[undefined, undefined, count]}>
-        <dodecahedronGeometry args={[1, 0]} />
-        <meshStandardMaterial color="#9aa8c0" roughness={1} metalness={0} flatShading />
-      </instancedMesh>
-    </group>
+    <RockBelt
+      count={MOBILE ? 60 : 140}
+      pos={[-20, 4, -38]}
+      rot={[0.3, 0, 0.05]}
+      radMin={26}
+      radMax={40}
+      yJit={2.5}
+      sMin={0.05}
+      sMax={0.17}
+      spin={0.008}
+      tints={[[0.6, 0.66, 0.75], [0.52, 0.58, 0.68], [0.66, 0.7, 0.78], [0.46, 0.5, 0.6]]}
+    />
   );
 }
 
