@@ -208,12 +208,9 @@ function SolarBody({ b }: { b: Body }) {
           <meshStandardMaterial
             map={map}
             normalMap={b.normalSrc ? nrm : null}
-            normalScale={b.normalSrc ? new THREE.Vector2(1.5, 1.5) : undefined}
+            normalScale={b.normalSrc ? new THREE.Vector2(1.7, 1.7) : undefined}
             bumpMap={b.rocky && !b.normalSrc ? map : null}
-            bumpScale={b.rocky && !b.normalSrc ? 0.06 : 0}
-            displacementMap={b.rocky ? map : undefined}
-            displacementScale={b.rocky ? 0.05 : 0}
-            displacementBias={b.rocky ? -0.025 : 0}
+            bumpScale={b.rocky && !b.normalSrc ? 0.04 : 0}
             roughness={b.rocky ? 0.96 : 0.6}
             metalness={0}
           />
@@ -342,10 +339,7 @@ function Moon3D({ m }: { m: MoonDef }) {
         map={map}
         color={m.color}
         normalMap={nrm}
-        normalScale={new THREE.Vector2(1.3, 1.3)}
-        displacementMap={map}
-        displacementScale={m.size * 0.05}
-        displacementBias={-m.size * 0.025}
+        normalScale={new THREE.Vector2(1.6, 1.6)}
         roughness={1}
         metalness={0}
       />
@@ -411,13 +405,13 @@ function Stars() {
   return (
     <>
       <points geometry={fine}>
-        <pointsMaterial size={0.04} sizeAttenuation vertexColors transparent opacity={0.7} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
+        <pointsMaterial map={dotTexture()}size={0.05} sizeAttenuation vertexColors transparent opacity={0.7} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
       </points>
       <points geometry={dense}>
-        <pointsMaterial size={0.08} sizeAttenuation vertexColors transparent opacity={0.9} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
+        <pointsMaterial map={dotTexture()}size={0.1} sizeAttenuation vertexColors transparent opacity={0.9} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
       </points>
       <points geometry={bright}>
-        <pointsMaterial size={0.32} sizeAttenuation vertexColors transparent opacity={0.95} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
+        <pointsMaterial map={dotTexture()}size={0.4} sizeAttenuation vertexColors transparent opacity={0.95} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
       </points>
     </>
   );
@@ -631,6 +625,29 @@ function softTexture(): THREE.Texture {
   return _soft;
 }
 
+// 丸い星の点テクスチャ（中心が明るく縁で減衰）。pointsMaterial は map 無しだと
+// gl_PointCoord 全面を塗る＝四角い点になる。これを map に与えて丸い光の粒にする。
+let _dot: THREE.Texture | null = null;
+function dotTexture(): THREE.Texture {
+  if (_dot) return _dot;
+  const c = document.createElement("canvas");
+  c.width = c.height = 64;
+  const ctx = c.getContext("2d");
+  if (ctx) {
+    const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+    g.addColorStop(0.0, "rgba(255,255,255,1)");
+    g.addColorStop(0.45, "rgba(255,255,255,0.9)");
+    g.addColorStop(0.75, "rgba(255,255,255,0.28)");
+    g.addColorStop(1.0, "rgba(255,255,255,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 64, 64);
+  }
+  _dot = new THREE.CanvasTexture(c);
+  _dot.generateMipmaps = false;
+  _dot.minFilter = THREE.LinearFilter;
+  return _dot;
+}
+
 // 散光星雲（色とりどりの発光雲）
 function NebulaClouds() {
   const tex = useMemo(() => softTexture(), []);
@@ -841,7 +858,7 @@ function MilkyWay() {
   return (
     <group rotation={[0.5, 0.3, 0.62]}>
       <points geometry={geo}>
-        <pointsMaterial size={0.085} sizeAttenuation vertexColors transparent opacity={0.85} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
+        <pointsMaterial map={dotTexture()}size={0.1} sizeAttenuation vertexColors transparent opacity={0.85} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
       </points>
       {glows.map((g, i) => (
         <sprite key={i} position={g.pos} scale={[g.w, 5, 1]}>
@@ -866,7 +883,7 @@ function ConstellationLines() {
         const points = c.pts.map((p) => new THREE.Vector3(c.pos[0] + p[0] * 2.2, c.pos[1] + p[1] * 2.2, c.pos[2]));
         const geo = new THREE.BufferGeometry().setFromPoints(points);
         const lineMat = new THREE.LineBasicMaterial({ color: "#9db4ff", transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
-        const ptsMat = new THREE.PointsMaterial({ size: 0.55, sizeAttenuation: true, color: "#dce8ff", transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
+        const ptsMat = new THREE.PointsMaterial({ map: dotTexture(), size: 0.6, sizeAttenuation: true, color: "#dce8ff", transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
         return { line: new THREE.Line(geo, lineMat), pts: new THREE.Points(geo, ptsMat), geo, lineMat, ptsMat };
       }),
     [],

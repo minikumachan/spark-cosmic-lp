@@ -82,12 +82,9 @@ function ViewerPlanet({ p, pos }: { p: V; pos: THREE.Vector3 }) {
           <meshStandardMaterial
             map={map}
             normalMap={p.normalSrc ? nrm : undefined}
-            normalScale={p.normalSrc ? new THREE.Vector2(1.6, 1.6) : undefined}
+            normalScale={p.normalSrc ? new THREE.Vector2(1.8, 1.8) : undefined}
             bumpMap={p.rocky && !p.normalSrc ? map : null}
-            bumpScale={p.rocky && !p.normalSrc ? 0.07 : 0}
-            displacementMap={p.rocky ? map : undefined}
-            displacementScale={p.rocky ? 0.055 : 0}
-            displacementBias={p.rocky ? -0.028 : 0}
+            bumpScale={p.rocky && !p.normalSrc ? 0.05 : 0}
             roughness={p.rocky ? 0.96 : 0.55}
             metalness={0}
           />
