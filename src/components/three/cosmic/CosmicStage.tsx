@@ -405,13 +405,13 @@ function Stars() {
   return (
     <>
       <points geometry={fine}>
-        <pointsMaterial map={dotTexture()}size={0.05} sizeAttenuation vertexColors transparent opacity={0.7} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
+        <pointsMaterial ref={roundPointRef} map={dotTexture()} size={0.05} sizeAttenuation vertexColors transparent opacity={0.7} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
       </points>
       <points geometry={dense}>
-        <pointsMaterial map={dotTexture()}size={0.1} sizeAttenuation vertexColors transparent opacity={0.9} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
+        <pointsMaterial ref={roundPointRef} map={dotTexture()} size={0.1} sizeAttenuation vertexColors transparent opacity={0.9} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
       </points>
       <points geometry={bright}>
-        <pointsMaterial map={dotTexture()}size={0.4} sizeAttenuation vertexColors transparent opacity={0.95} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
+        <pointsMaterial ref={roundPointRef} map={dotTexture()} size={0.4} sizeAttenuation vertexColors transparent opacity={0.95} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
       </points>
     </>
   );
@@ -648,6 +648,24 @@ function dotTexture(): THREE.Texture {
   return _dot;
 }
 
+// 点(Points)を確実に丸くする。three.js の Point は既定で gl_PointCoord 全面塗り＝四角。
+// テクスチャ(map)でも丸くなるが、ドライバ/GPUによっては点テクスチャが効かず四角のまま残る
+// 可能性があるため、フラグメントで gl_PointCoord の距離が 0.5 超を discard ＝テクスチャに
+// 依存せず必ず丸い点にする（最も堅牢）。
+const roundInject = (shader: THREE.WebGLProgramParametersWithUniforms) => {
+  shader.fragmentShader = shader.fragmentShader.replace(
+    "void main() {",
+    "void main() {\n\tif ( length( gl_PointCoord - vec2( 0.5 ) ) > 0.5 ) discard;",
+  );
+};
+const roundPointRef = (m: THREE.PointsMaterial | null) => {
+  if (m && !m.userData._round) {
+    m.userData._round = true;
+    m.onBeforeCompile = roundInject;
+    m.needsUpdate = true;
+  }
+};
+
 // 散光星雲（色とりどりの発光雲）
 function NebulaClouds() {
   const tex = useMemo(() => softTexture(), []);
@@ -858,7 +876,7 @@ function MilkyWay() {
   return (
     <group rotation={[0.5, 0.3, 0.62]}>
       <points geometry={geo}>
-        <pointsMaterial map={dotTexture()}size={0.1} sizeAttenuation vertexColors transparent opacity={0.85} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
+        <pointsMaterial ref={roundPointRef} map={dotTexture()} size={0.1} sizeAttenuation vertexColors transparent opacity={0.85} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
       </points>
       {glows.map((g, i) => (
         <sprite key={i} position={g.pos} scale={[g.w, 5, 1]}>
@@ -884,6 +902,7 @@ function ConstellationLines() {
         const geo = new THREE.BufferGeometry().setFromPoints(points);
         const lineMat = new THREE.LineBasicMaterial({ color: "#9db4ff", transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
         const ptsMat = new THREE.PointsMaterial({ map: dotTexture(), size: 0.6, sizeAttenuation: true, color: "#dce8ff", transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
+        ptsMat.onBeforeCompile = roundInject; // gl_PointCoord で確実に丸く（テクスチャ非依存）
         return { line: new THREE.Line(geo, lineMat), pts: new THREE.Points(geo, ptsMat), geo, lineMat, ptsMat };
       }),
     [],
