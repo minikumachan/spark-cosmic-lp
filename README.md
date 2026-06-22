@@ -1,22 +1,22 @@
 # spark — Cosmic Brand LP
 
-スクロールで太陽系を旅するインタラクティブな WebGL ランディングページ。
-架空のクリエイティブスタジオ「spark」のコンセプトサイトとして、デザイン品質と実装の工学品質を両立させたショーケース作品です。
+スクロールで太陽系を旅する WebGL ランディングページ。
+架空のクリエイティブスタジオ「spark」のコンセプトサイトとして、デザインと実装の両面を作り込んだ作品です。
 
 - **Live:** https://spark-lp.pages.dev
 - **Stack:** Astro 6 / React Three Fiber / 自作 GLSL / Cloudflare Pages
 
-> 本リポジトリは個人のポートフォリオ作品です。実在の受託案件ではなく、設計・3D・パフォーマンス・アクセシビリティ・セキュリティを一貫して高水準で作り込む力を示すための制作物です。
+> 個人のポートフォリオ作品です。実在の受託案件ではありません。設計・3D・パフォーマンス・アクセシビリティ・セキュリティをどこまで作り込めるかを示すために制作しました。
 
 ---
 
 ## ハイライト
 
-- 永続フルスクリーンの WebGL 背景に、SSR の HTML コンテンツを重ねる構成。3D は装飾（`aria-hidden`）として扱い、SEO・アクセシビリティを犠牲にしない。
+- 永続フルスクリーンの WebGL 背景に、SSR の HTML コンテンツを重ねる構成。3D は装飾（`aria-hidden`）として扱い、SEO とアクセシビリティを保つ。
 - スクロール連動カメラの旅：地球 → 月 → 火星 → 木星 → 土星 → 海王星 → 天の川級の銀河へ。各セクションで実在の惑星をフォトリアルに描画。
 - 惑星図鑑（鑑賞モード）：全10天体を間近で観賞。惑星切替時はカメラが宇宙空間を飛行して近づく遷移。OrbitControls で自由に回転・ズーム。
 - 宇宙現象の再現：法線マップによる凹凸、実比率の自転（逆行含む）、小惑星帯・カイパーベルト、彗星・流れ星、散光星雲、Bloom による発光。
-- 計測に裏打ちされた品質：Lighthouse a11y 100 / SEO 100 / Best-Practices 100 / CLS 0 / Performance 92（WebGL ショーケースとして）。
+- Lighthouse 実測：a11y 100 / SEO 100 / Best-Practices 100 / CLS 0 / Performance 92（WebGL を多用したサイトとして）。
 
 ---
 
@@ -28,23 +28,21 @@
 | 3D | React Three Fiber v9 + drei + three 0.184 + @react-three/postprocessing（Bloom / Vignette）+ 自作 GLSL |
 | スタイル | スコープド CSS / CSS カスタムプロパティ / `clamp()` レスポンシブ |
 | タイポ | Clash Display / Zen Kaku Gothic New / JetBrains Mono（self-host・サブセット・`font-display:swap`） |
-| ホスティング | Cloudflare Pages + Pages Functions（問い合わせ API）— 無料・サーバーレス |
+| ホスティング | Cloudflare Pages + Pages Functions（問い合わせ API・無料） |
 | 品質ゲート | astro check / Playwright e2e / @axe-core / Lighthouse CI |
 
 ---
 
-## 主要な設計判断（なぜそうしたか）
+## 主な設計判断
 
-### 1. 3D は「背景」、コンテンツは SSR の HTML
-WebGL を全画面の固定背景に置き、その上に通常の SSR された HTML（見出し・本文・フォーム）を重ねた。
-理由：3D を Canvas 内テキストにすると検索エンジン・スクリーンリーダーに読まれない。装飾と情報を分離することで、没入感とアクセシビリティ／SEO を同時に満たす。Canvas は `aria-hidden` + `tabindex=-1`。
+### 1. 3D は背景、コンテンツは SSR の HTML
+WebGL を全画面の固定背景に置き、その上に SSR した HTML（見出し・本文・フォーム）を重ねている。3D を Canvas 内のテキストにすると検索エンジンやスクリーンリーダーが読めないため、装飾と情報を分けた。これで没入感とアクセシビリティ／SEO を両立できる。Canvas には `aria-hidden` と `tabindex=-1` を付与。
 
-### 2. カメラの旅は「DOM セクション駆動」
-カメラの各停止点をスクロール率ではなく、実際のセクションの画面中心 Y に束縛して補間する。
-理由：スクロール率に結合するとセクションの増減・高さ変化で破綻する。DOM 位置駆動なら内容が変わってもカメラが追従する。補間はフレームレート非依存（`1 - exp(-k·dt)`）＋スクロール入力の平滑化で、ホイールの離散ジャンプも滑らかになる。
+### 2. カメラの停止点は DOM セクション駆動
+各停止点を、スクロール率ではなく実際のセクションの画面中心 Y に束縛して補間する。スクロール率に直接結合するとセクションの増減や高さ変化で破綻するが、DOM 位置を基準にすれば内容が変わっても追従する。補間はフレームレート非依存（`1 - exp(-k·dt)`）で、スクロール入力も平滑化してホイールの離散的な動きをなめらかにしている。
 
-### 3. 「画質を落とさない」パフォーマンス戦略
-重い体験を初回表示の速さと両立させるための多層対策：
+### 3. 画質を落とさずに軽くする
+重い体験でも初回表示を速くするための対策：
 
 - 3D の遅延ロード（`DeferredStage`）：`requestIdleCallback` で three.js を FCP/LCP の後に読み込む。初期は CSS グラデのフォールバックが見える。結果として perf 84 → 92 / LCP 3.4s → 2.6s。
 - Adaptive DPR：drei `PerformanceMonitor` で FPS を監視し、弱い GPU では解像度を自動で落として破綻を防ぐ。
@@ -53,7 +51,7 @@ WebGL を全画面の固定背景に置き、その上に通常の SSR された
 - 不可視時は `frameloop="never"`、`manualChunks` で three を独立チャンク化、未使用バッファ無効化、`dispose` を徹底。
 
 ### 4. 厳格な Content-Security-Policy（unsafe-inline なし）
-インラインスクリプトをビルド時に sha256 ハッシュ化して `script-src` に列挙する自作インテグレーションで、`'unsafe-inline'` を排した CSP を実現。`frame-ancestors 'none'` / HSTS / Referrer-Policy / X-Frame-Options も付与。
+インラインスクリプトをビルド時に sha256 ハッシュ化して `script-src` に列挙する自作インテグレーションで、`'unsafe-inline'` を使わない CSP にしている。`frame-ancestors 'none'` / HSTS / Referrer-Policy / X-Frame-Options も付与。
 
 ### 5. 堅牢性
 テクスチャ 404 や WebGL コンテキストロストで Canvas が落ちても、ErrorBoundary が CSS 背景へ安全に退避する。`prefers-reduced-motion` で 3D・入場アニメ・スクロール挙動を停止。
