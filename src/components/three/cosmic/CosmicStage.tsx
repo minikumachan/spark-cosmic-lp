@@ -1268,6 +1268,13 @@ class CanvasErrorBoundary extends Component<{ children: ReactNode }, { hasError:
 export default function CosmicStage() {
   const [enabled, setEnabled] = useState(false);
   const [active, setActive] = useState(true);
+  const [reduced, setReduced] = useState(false);
+  const [settled, setSettled] = useState(false); // reduced-motion: 初期描画後に静止
+  useEffect(() => {
+    if (!reduced) return;
+    const t = window.setTimeout(() => setSettled(true), 2200); // 2.2秒だけ描画してテクスチャ反映→静止
+    return () => window.clearTimeout(t);
+  }, [reduced]);
   useEffect(() => {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let webgl = false;
@@ -1277,7 +1284,10 @@ export default function CosmicStage() {
     } catch {
       webgl = false;
     }
-    setEnabled(!reduce && webgl);
+    // WebGLがあれば常に背景3Dを表示。reduced-motion時は連続アニメを止めた静止表示にする
+    // （以前は reduce で完全非表示にしていたため「背景が映らない」状態になっていた）。
+    setEnabled(webgl);
+    setReduced(reduce);
     // タブ非表示中＋惑星図鑑オープン中は背景3Dを停止（二重描画による高負荷を回避）
     let viewerOpen = false;
     const update = () => setActive(!document.hidden && !viewerOpen);
@@ -1298,7 +1308,7 @@ export default function CosmicStage() {
         tabIndex={-1}
         style={{ position: "fixed", inset: 0 }}
         dpr={MOBILE ? 1 : 1.5}
-        frameloop={active ? "always" : "never"}
+        frameloop={reduced ? (settled ? "never" : "always") : active ? "always" : "never"}
         camera={{ position: [0, 0.2, 3.6], fov: 50 }}
         gl={{ antialias: !MOBILE, alpha: false, stencil: false, powerPreference: "high-performance" }}
       >
