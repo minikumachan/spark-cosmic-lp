@@ -55,6 +55,12 @@ function securityHeaders() {
   Permissions-Policy: camera=(), microphone=(), geolocation=(), interest-cohort=()
   X-Frame-Options: DENY
 
+/*.html
+  Cache-Control: no-cache
+
+/
+  Cache-Control: no-cache
+
 /fonts/*
   Cache-Control: public, max-age=31536000
 
