@@ -144,7 +144,11 @@ function AtmosphereRim({ color }: { color: string }) {
 
 // ── 太陽系（heliocentric）。太陽を中心に、軌道半径順に惑星を黄道面(XZ)で公転させる。
 //    位置は「初期角 + 経過時間×公転速度」で決定論的に算出するので、カメラ側も同じ式で
-//    各惑星の現在位置を読み、公転する惑星を追従フレーミングできる。半径/速度は様式化(実比は不可能)。 ──
+//    各惑星の現在位置を読み、公転する惑星を追従フレーミングできる。
+//    軌道半径Rは可視化のため圧縮している(実AU比 Neptune/Mercury≒77倍は描画不能)が、
+//    公転角速度 orbit はケプラーの第3法則 T²∝R³ ⇔ ω∝R^(-3/2) に厳密に従わせる
+//    （= orbit ≒ 1.0207·R^-1.5、地球R=10.5でω=0.030に正規化）。これで内惑星ほど速く
+//    外惑星ほど遅い、物理的に正しい相対公転になる。検証: 全惑星で T²/R³ が一定。 ──
 const SUN_POS = new THREE.Vector3(0, 0, 0);
 type Body = {
   key: string; src: string; normalSrc?: string;
@@ -153,14 +157,14 @@ type Body = {
   ring?: boolean; faintRing?: boolean; rocky?: boolean; atmo?: string;
 };
 const BODIES: Body[] = [
-  { key: "mercury", src: "/assets/planet/mercury.webp", normalSrc: "/assets/planet/mercury_n.webp", R: 5.0,  ang0: 0.6, orbit: 0.050,  incl: 0.10, scale: 0.30, rot: 0.004,  tilt: 0.03, rocky: true },
-  { key: "venus",   src: "/assets/planet/venus.webp",   R: 7.5,  ang0: 2.3, orbit: 0.038,  incl: 0.06, scale: 0.50, rot: -0.002, tilt: 0.05, atmo: "#e8c87a" },
+  { key: "mercury", src: "/assets/planet/mercury.webp", normalSrc: "/assets/planet/mercury_n.webp", R: 5.0,  ang0: 0.6, orbit: 0.0913, incl: 0.10, scale: 0.30, rot: 0.004,  tilt: 0.03, rocky: true },
+  { key: "venus",   src: "/assets/planet/venus.webp",   R: 7.5,  ang0: 2.3, orbit: 0.0497, incl: 0.06, scale: 0.50, rot: -0.002, tilt: 0.05, atmo: "#e8c87a" },
   { key: "earth",   src: "/assets/planet/earth_day.webp", normalSrc: "/assets/planet/earth_normal.webp", R: 10.5, ang0: 4.0, orbit: 0.030, incl: 0.0,  scale: 0.55, rot: 0.05, tilt: 0.33, rocky: true, atmo: "#5fb8ff" },
-  { key: "mars",    src: "/assets/planet/mars.webp",    normalSrc: "/assets/planet/mars_n.webp", R: 14.5, ang0: 5.4, orbit: 0.024,  incl: 0.05, scale: 0.40, rot: 0.048,  tilt: 0.35, rocky: true, atmo: "#ff7a4d" },
-  { key: "jupiter", src: "/assets/planet/jupiter.webp", R: 23,   ang0: 1.1, orbit: 0.013,  incl: 0.03, scale: 1.8,  rot: 0.10,   tilt: 0.05, atmo: "#e8b87a" },
-  { key: "saturn",  src: "/assets/planet/saturn.webp",  R: 31,   ang0: 3.4, orbit: 0.0092, incl: 0.04, scale: 1.5,  rot: 0.09,   tilt: 0.46, ring: true, atmo: "#e6c77a" },
-  { key: "uranus",  src: "/assets/planet/uranus.webp",  R: 39,   ang0: 5.9, orbit: 0.0066, incl: 0.08, scale: 1.05, rot: -0.05,  tilt: 1.5,  faintRing: true, atmo: "#9fe8e0" },
-  { key: "neptune", src: "/assets/planet/neptune.webp", R: 47,   ang0: 0.3, orbit: 0.0054, incl: 0.05, scale: 1.0,  rot: 0.06,   tilt: 0.30, atmo: "#5b8cff" },
+  { key: "mars",    src: "/assets/planet/mars.webp",    normalSrc: "/assets/planet/mars_n.webp", R: 14.5, ang0: 5.4, orbit: 0.0185, incl: 0.05, scale: 0.40, rot: 0.048,  tilt: 0.35, rocky: true, atmo: "#ff7a4d" },
+  { key: "jupiter", src: "/assets/planet/jupiter.webp", R: 23,   ang0: 1.1, orbit: 0.00925, incl: 0.03, scale: 1.8,  rot: 0.10,   tilt: 0.05, atmo: "#e8b87a" },
+  { key: "saturn",  src: "/assets/planet/saturn.webp",  R: 31,   ang0: 3.4, orbit: 0.00591, incl: 0.04, scale: 1.5,  rot: 0.09,   tilt: 0.46, ring: true, atmo: "#e6c77a" },
+  { key: "uranus",  src: "/assets/planet/uranus.webp",  R: 39,   ang0: 5.9, orbit: 0.00419, incl: 0.08, scale: 1.05, rot: -0.05,  tilt: 1.5,  faintRing: true, atmo: "#9fe8e0" },
+  { key: "neptune", src: "/assets/planet/neptune.webp", R: 47,   ang0: 0.3, orbit: 0.00317, incl: 0.05, scale: 1.0,  rot: 0.06,   tilt: 0.30, atmo: "#5b8cff" },
 ];
 const BODY: Record<string, Body> = Object.fromEntries(BODIES.map((b) => [b.key, b]));
 // 惑星の現在位置（決定論的＝カメラも同式で追従可能）
@@ -1201,6 +1205,20 @@ function Rig() {
       lerp(p0.z, p1.z, f),
     );
     look.set(lerp(l0.x, l1.x, f), lerp(l0.y, l1.y, f), lerp(l0.z, l1.z, f));
+    // ── 惑星間の「引き→寄り」演出 ──
+    // セクション間(f:0→1)の中盤でカメラを黄道面の外・上へ大きく退避させ、太陽系全体を俯瞰してから
+    // 次の惑星へ再接近する。pull=sin(πf) は f=0,1(停止点)で0・f=0.5(中間)で最大＝停止時は通常フレーミングに一致。
+    const aKey = STOPS[i].key, bKey = (STOPS[i + 1] ?? STOPS[i]).key;
+    if (aKey !== "galaxy" && bKey !== "galaxy") {
+      // 銀河への最終遷移は元から大きく引くので追加の引きはしない
+      const segR = Math.max(BODY[aKey].R, BODY[bKey].R);
+      const pull = Math.sin(Math.PI * f);
+      _radial.set(target.x, 0, target.z); // 太陽(原点)→カメラの放射方向（黄道面内）
+      if (_radial.lengthSq() > 1e-4) _radial.normalize();
+      target.addScaledVector(_radial, pull * segR * 0.7); // 外側へ後退（系の外から見る）
+      target.y += pull * (segR * 0.5 + 5); // 上昇（黄道面を見下ろす広い画）
+      look.lerp(SUN_POS, pull * 0.5); // 注視点を太陽寄りへ引き、系の中心＝全体を見せる
+    }
     // 初回はスナップ（ロード時に原点からスウープしない）
     if (!inited.current) {
       inited.current = true;
