@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls, useTexture, Stars } from "@react-three/drei";
+import { OrbitControls, useTexture, Stars, Html } from "@react-three/drei";
 import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import * as THREE from "three";
 import { LITE } from "./tier";
@@ -171,6 +171,7 @@ const VPOS: Record<string, [number, number, number]> = {
   galaxy: [0, 0, 0],
 };
 const vpos = (key: string) => new THREE.Vector3(...(VPOS[key] ?? [0, 0, 0]));
+const PLANET_MAP: Record<string, V> = Object.fromEntries(PLANETS.map((pl) => [pl.key, pl]));
 
 // 切替時：OrbitControls の target を新天体へ滑らかに移動。
 // → カメラは offset を保ったまま「空間を移動し、向き直りながら近づく」飛行になる。
@@ -317,8 +318,76 @@ function makeMat(vert: string, size: number, withTime = false) {
     vertexShader: vert, fragmentShader: pointFrag, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
   });
 }
+
+// ── 実在の恒星を高品質に再現：粒状の対流セル（fbmノイズ）＋周縁減光＋自発光。テクスチャ不要＝軽量。 ──
+const starVert = `varying vec3 vP; varying vec3 vN; varying vec3 vView;
+void main(){ vP = position; vec4 mv = modelViewMatrix*vec4(position,1.0); vN = normalize(normalMatrix*normal); vView = normalize(-mv.xyz); gl_Position = projectionMatrix*mv; }`;
+const starFrag = `varying vec3 vP; varying vec3 vN; varying vec3 vView; uniform vec3 uColor; uniform float uTime; uniform float uBright;
+vec3 hash3(vec3 p){ p=vec3(dot(p,vec3(127.1,311.7,74.7)),dot(p,vec3(269.5,183.3,246.1)),dot(p,vec3(113.5,271.9,124.6))); return -1.0+2.0*fract(sin(p)*43758.5453123); }
+float gnoise(vec3 p){ vec3 i=floor(p),f=fract(p),u=f*f*(3.0-2.0*f);
+  return mix(mix(mix(dot(hash3(i+vec3(0,0,0)),f-vec3(0,0,0)),dot(hash3(i+vec3(1,0,0)),f-vec3(1,0,0)),u.x),
+                 mix(dot(hash3(i+vec3(0,1,0)),f-vec3(0,1,0)),dot(hash3(i+vec3(1,1,0)),f-vec3(1,1,0)),u.x),u.y),
+             mix(mix(dot(hash3(i+vec3(0,0,1)),f-vec3(0,0,1)),dot(hash3(i+vec3(1,0,1)),f-vec3(1,0,1)),u.x),
+                 mix(dot(hash3(i+vec3(0,1,1)),f-vec3(0,1,1)),dot(hash3(i+vec3(1,1,1)),f-vec3(1,1,1)),u.x),u.y),u.z); }
+float fbm(vec3 p){ float a=0.5,s=0.0; for(int i=0;i<3;i++){ s+=a*gnoise(p); p*=2.02; a*=0.5; } return s; }
+void main(){
+  vec3 q=vP*2.6; float n=fbm(q+vec3(0.0,uTime*0.16,0.0)); float hi=gnoise(q*5.0-uTime*0.12);
+  float gran=0.5+0.7*n+0.16*hi; float limb=pow(max(dot(vN,vView),0.0),0.5); float hot=smoothstep(0.25,0.95,gran);
+  vec3 col=uColor*gran + uColor*hot*0.6; col*=(0.5+0.75*limb);
+  gl_FragColor=vec4(col*uBright,1.0);
+}`;
+function HQStar({ color, size }: { color: string; size: number }) {
+  const matRef = useRef<THREE.ShaderMaterial>(null);
+  const uniforms = useMemo(() => ({ uColor: { value: new THREE.Color(color) }, uTime: { value: Math.random() * 40 }, uBright: { value: 1.55 } }), [color]);
+  useFrame((_, d) => { if (matRef.current) matRef.current.uniforms.uTime.value += d; });
+  return (
+    <mesh>
+      <sphereGeometry args={[size, LITE ? 28 : 44, LITE ? 28 : 44]} />
+      <shaderMaterial ref={matRef} vertexShader={starVert} fragmentShader={starFrag} uniforms={uniforms} />
+    </mesh>
+  );
+}
+type IBody = { kind: "star" | "planet"; name: string; color: string; glow: string; size: number; planetKey?: string; pos: [number, number, number] };
+const _wp = new THREE.Vector3();
+const _ZERO = new THREE.Vector3();
+// 1天体：俯瞰では明るい塊（コロナ）、寄ると高品質メッシュ（恒星=粒状表面 / 惑星=地球レベルのテクスチャ）を
+// 遅延マウント。離れると破棄＝同時に高品質なのは画面近傍の数個だけ＝軽量。
+function InnerBody({ body }: { body: IBody }) {
+  const grp = useRef<THREE.Group>(null);
+  const [near, setNear] = useState(false);
+  useFrame(({ camera }) => {
+    if (!grp.current) return;
+    const dist = camera.position.distanceTo(grp.current.getWorldPosition(_wp));
+    const n = dist < body.size * 9 + 5; // 本当に寄った時だけ高品質版を生成＝同時マウントは数個＝軽量
+    if (n !== near) setNear(n);
+  });
+  const planet = body.planetKey ? PLANET_MAP[body.planetKey] : undefined;
+  const coronaS = body.size * (body.kind === "star" ? 7 : 3.0);
+  return (
+    <group ref={grp} position={body.pos}>
+      <sprite scale={[coronaS, coronaS, 1]}>
+        <spriteMaterial map={galaxyGlow()} color={body.glow} transparent opacity={near ? (body.kind === "star" ? 0.5 : 0) : 0.85} depthWrite={false} blending={THREE.AdditiveBlending} />
+      </sprite>
+      {near && (
+        <Suspense fallback={null}>
+          {body.kind === "star" ? (
+            <HQStar color={body.color} size={body.size} />
+          ) : planet?.key === "earth" ? (
+            <group scale={body.size}><ViewerEarth pos={_ZERO} /></group>
+          ) : planet ? (
+            <group scale={body.size}><ViewerPlanet p={planet} pos={_ZERO} /></group>
+          ) : null}
+          {body.name && (
+            <Html position={[0, body.size + 0.7, 0]} center distanceFactor={11} style={{ pointerEvents: "none", color: "#eef3ff", font: "700 12px 'Zen Kaku Gothic New',sans-serif", whiteSpace: "nowrap", textShadow: "0 1px 8px #000" }}>{body.name}</Html>
+          )}
+        </Suspense>
+      )}
+    </group>
+  );
+}
 function GalaxyScene() {
   const satGroup = useRef<THREE.Group>(null);
+  const innerGroup = useRef<THREE.Group>(null);
   const markerG = useRef<THREE.Group>(null);
   const mainGeo = useMemo(() => spiralGeo(LITE ? 26000 : 110000, GAL_RADIUS, GAL_BRANCHES, GAL_SPIN, 0.22, 3, "#fff0d0", "#3f78ff", 0.07), []);
   const satellites = useMemo(() => {
@@ -335,6 +404,28 @@ function GalaxyScene() {
         : ellipticalGeo(LITE ? 700 : 1700, 3.4, ell[(Math.random() * ell.length) | 0]);
       out.push({ pos: [Math.cos(ang) * dist, elev, Math.sin(ang) * dist], scale: 2.2 + Math.random() * 5, rot: [Math.random() * 0.9, Math.random() * Math.PI, Math.random() * 0.9], geo });
     }
+    return out;
+  }, []);
+  // ディスク内に埋め込む高品質天体。実在の恒星（名前＋スペクトル色）＋実在系外惑星（既存テクスチャ流用）＋
+  // 穴埋めの恒星。俯瞰では明るい塊、寄ると一つ一つが高品質天体に解像する。
+  const innerBodies = useMemo<IBody[]>(() => {
+    const STARS: [string, string, number][] = [
+      ["シリウス", "#cdd9ff", 0.5], ["ベテルギウス", "#ff7a55", 1.6], ["リゲル", "#aabfff", 1.0], ["ベガ", "#d2dcff", 0.5],
+      ["アークトゥルス", "#ffcf9a", 0.85], ["アルデバラン", "#ffb877", 0.9], ["アンタレス", "#ff6f4d", 1.5], ["スピカ", "#9fb6ff", 0.6],
+      ["カペラ", "#fff0d8", 0.7], ["プロキオン", "#fbf6ea", 0.42], ["アルタイル", "#e8eeff", 0.42], ["デネブ", "#e6ecff", 1.2],
+      ["カノープス", "#f3f5ff", 1.0], ["フォーマルハウト", "#dbe4ff", 0.5], ["ポルックス", "#ffd0a0", 0.7], ["レグルス", "#c2d2ff", 0.55],
+    ];
+    const EXO: [string, string, number][] = [
+      ["ケプラー452b", "earth", 0.5], ["TRAPPIST-1e", "earth", 0.42], ["プロキシマb", "mars", 0.4], ["HD 189733b", "neptune", 0.62],
+      ["55カンクリe", "venus", 0.46], ["ケプラー22b", "neptune", 0.55], ["WASP-12b", "jupiter", 0.72], ["グリーゼ667Cc", "mars", 0.44],
+    ];
+    const SPECTRAL = ["#9bb0ff", "#aabfff", "#cad7ff", "#f6f5ff", "#fff4e8", "#ffd2a1", "#ff9966"];
+    const place = (): [number, number, number] => { const r = 6 + Math.pow(Math.random(), 0.85) * 22, a = Math.random() * Math.PI * 2; return [Math.cos(a) * r, (Math.random() - 0.5) * 2.2, Math.sin(a) * r]; };
+    const out: IBody[] = [];
+    for (const [n, c, s] of STARS) out.push({ kind: "star", name: n, color: c, glow: c, size: s, pos: place() });
+    for (const [n, k, s] of EXO) out.push({ kind: "planet", name: n, color: "#ffffff", glow: "#bcd6ff", size: s, planetKey: k, pos: place() });
+    const fillerN = LITE ? 8 : 18;
+    for (let i = 0; i < fillerN; i++) { const c = SPECTRAL[(Math.random() * SPECTRAL.length) | 0]; out.push({ kind: "star", name: "", color: c, glow: c, size: 0.12 + Math.pow(Math.random(), 2) * 0.45, pos: place() }); }
     return out;
   }, []);
   const distantGeo = useMemo(() => fieldGeo(LITE ? 1200 : 2600, 70, 135, ["#ffd9a0", "#bcd0ff", "#ffb0d0", "#a0d8ff", "#fff0d0"], 1.4, 3.6, 0.7), []);
@@ -355,12 +446,13 @@ function GalaxyScene() {
   useFrame((_, d) => {
     mainMat.uniforms.uTime.value += d;
     if (satGroup.current) satGroup.current.rotation.y += d * 0.015;
+    if (innerGroup.current) innerGroup.current.rotation.y += d * 0.006; // 寄って観察しやすいよう極ゆっくり公転
     if (markerG.current) markerG.current.rotation.y += d * 0.04; // アームと同じ差動角(r=18)で公転
   });
   return (
     <group>
-      <sprite scale={[16, 16, 1]}><spriteMaterial map={galaxyGlow()} color="#fff0d0" transparent opacity={0.6} depthWrite={false} blending={THREE.AdditiveBlending} /></sprite>
-      <sprite scale={[44, 44, 1]}><spriteMaterial map={galaxyGlow()} color="#ffcaa0" transparent opacity={0.13} depthWrite={false} blending={THREE.AdditiveBlending} /></sprite>
+      <sprite scale={[9, 9, 1]}><spriteMaterial map={galaxyGlow()} color="#fff0d0" transparent opacity={0.5} depthWrite={false} blending={THREE.AdditiveBlending} /></sprite>
+      <sprite scale={[22, 22, 1]}><spriteMaterial map={galaxyGlow()} color="#ffcaa0" transparent opacity={0.07} depthWrite={false} blending={THREE.AdditiveBlending} /></sprite>
       <points geometry={mainGeo} material={mainMat} />
       <group ref={satGroup}>
         {satellites.map((s, i) => (
@@ -368,6 +460,10 @@ function GalaxyScene() {
             <points geometry={s.geo} material={satMat} />
           </group>
         ))}
+      </group>
+      {/* ディスク内の高品質天体（俯瞰=明るい塊 / 寄ると一つ一つが高品質天体に解像。遅延マウントで軽量） */}
+      <group ref={innerGroup}>
+        {innerBodies.map((b, i) => <InnerBody key={i} body={b} />)}
       </group>
       <points geometry={distantGeo} material={distantMat} />
       <points geometry={starGeo} material={starMat} />
@@ -458,13 +554,13 @@ export default function PlanetViewer() {
             <Bloom luminanceThreshold={0.68} luminanceSmoothing={0.22} intensity={0.42} mipmapBlur radius={0.4} />
           </EffectComposer>
         )}
-        <OrbitControls ref={controls as never} enablePan={!!p.galaxy} autoRotate autoRotateSpeed={p.galaxy ? 0.25 : 0.4} minDistance={p.galaxy ? 3 : 2.2} maxDistance={p.galaxy ? 165 : 9} enableDamping dampingFactor={0.07} />
+        <OrbitControls ref={controls as never} enablePan={!!p.galaxy} zoomToCursor={!!p.galaxy} autoRotate={!p.galaxy} autoRotateSpeed={0.4} minDistance={p.galaxy ? 1.4 : 2.2} maxDistance={p.galaxy ? 170 : 9} enableDamping dampingFactor={0.07} />
       </Canvas>
 
       <header className="pv-top">
         <div className="pv-title vinfo" key={p.key}>
           <p className="pv-en">
-            ✦ {p.en}<span className="pv-hint">　ドラッグで回転 / スクロール・ピンチでズーム</span>
+            ✦ {p.en}<span className="pv-hint">　{p.galaxy ? "ドラッグで回転 / 見たい所へズームすると銀河の中の銀河が見えてきます" : "ドラッグで回転 / スクロール・ピンチでズーム"}</span>
           </p>
           <h2 className="pv-name">{p.name}</h2>
         </div>
