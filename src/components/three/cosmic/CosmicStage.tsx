@@ -1308,9 +1308,17 @@ export default function CosmicStage() {
         tabIndex={-1}
         style={{ position: "fixed", inset: 0 }}
         dpr={MOBILE ? 1 : 1.5}
-        frameloop={reduced ? (settled ? "never" : "always") : active ? "always" : "never"}
+        frameloop={reduced ? (settled ? "demand" : "always") : active ? "always" : "never"}
         camera={{ position: [0, 0.2, 3.6], fov: 50 }}
-        gl={{ antialias: !MOBILE, alpha: false, stencil: false, powerPreference: "high-performance" }}
+        gl={{
+          antialias: !MOBILE,
+          alpha: false,
+          stencil: false,
+          powerPreference: "high-performance",
+          // reduced-motion: 描画停止(frameloop:never)後にブラウザがバッファをクリアして
+          // 背景が消えるのを防ぎ、最終フレームを保持する（一瞬映って消える不具合の対策）。
+          preserveDrawingBuffer: reduced,
+        }}
       >
         <Rig />
       </Canvas>
