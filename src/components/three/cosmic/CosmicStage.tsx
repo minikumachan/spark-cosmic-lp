@@ -182,7 +182,8 @@ function FaintRing() {
   );
 }
 
-// 1天体：太陽を公転（位置）＋自転（mesh回転）。
+// 1天体：太陽を公転（位置）＋自転（mesh回転）。図鑑(ViewerPlanet)と同等の品質：
+// 高分割球＋法線マップ＋岩石は変位マップ(本物の起伏)＝のっぺり/カクつき解消。
 function SolarBody({ b }: { b: Body }) {
   const grp = useRef<THREE.Group>(null);
   const ref = useRef<THREE.Mesh>(null);
@@ -190,8 +191,11 @@ function SolarBody({ b }: { b: Body }) {
   useMemo(() => {
     map.colorSpace = THREE.SRGBColorSpace;
     map.anisotropy = 16;
-  }, [map]);
+    if (b.normalSrc) nrm.anisotropy = 16;
+  }, [map, nrm, b.normalSrc]);
   const pos = useMemo(() => new THREE.Vector3(), []);
+  // 128分割で球の輪郭は完全に滑らか（視覚的に200分割と区別不可）＝品質を保ちつつ頂点数を節約。
+  const seg = b.rocky ? (MOBILE ? 96 : 128) : (MOBILE ? 80 : 128);
   useFrame(({ clock }, d) => {
     if (grp.current) grp.current.position.copy(orbitPos(b, clock.elapsedTime, pos));
     if (ref.current) ref.current.rotation.y += d * b.rot;
@@ -200,12 +204,17 @@ function SolarBody({ b }: { b: Body }) {
     <group ref={grp}>
       <group rotation={[b.tilt, 0, 0.04]} scale={b.scale}>
         <mesh ref={ref}>
-          <sphereGeometry args={[1, 96, 96]} />
+          <sphereGeometry args={[1, seg, seg]} />
           <meshStandardMaterial
             map={map}
             normalMap={b.normalSrc ? nrm : null}
-            normalScale={b.normalSrc ? new THREE.Vector2(1.4, 1.4) : undefined}
-            roughness={b.rocky ? 0.95 : 0.6}
+            normalScale={b.normalSrc ? new THREE.Vector2(1.5, 1.5) : undefined}
+            bumpMap={b.rocky && !b.normalSrc ? map : null}
+            bumpScale={b.rocky && !b.normalSrc ? 0.06 : 0}
+            displacementMap={b.rocky ? map : undefined}
+            displacementScale={b.rocky ? 0.05 : 0}
+            displacementBias={b.rocky ? -0.025 : 0}
+            roughness={b.rocky ? 0.96 : 0.6}
             metalness={0}
           />
         </mesh>
@@ -216,13 +225,57 @@ function SolarBody({ b }: { b: Body }) {
     </group>
   );
 }
-// 太陽系の全惑星（公転）。
+// 地球（背景・公転）：昼面＋法線＋雲＋夜景の灯＋大気＝図鑑(ViewerEarth)と同等のフル再現。
+function SolarEarth() {
+  const b = BODY.earth;
+  const grp = useRef<THREE.Group>(null);
+  const earth = useRef<THREE.Mesh>(null);
+  const clouds = useRef<THREE.Mesh>(null);
+  const [day, normal, clud, lights] = useTexture([
+    "/assets/planet/earth_day.webp",
+    "/assets/planet/earth_normal.webp",
+    "/assets/planet/earth_clouds.webp",
+    "/assets/planet/earth_lights.webp",
+  ]);
+  useMemo(() => {
+    day.colorSpace = THREE.SRGBColorSpace;
+    lights.colorSpace = THREE.SRGBColorSpace;
+    clud.colorSpace = THREE.SRGBColorSpace;
+    for (const t of [day, normal, clud, lights]) t.anisotropy = 16;
+  }, [day, normal, clud, lights]);
+  const pos = useMemo(() => new THREE.Vector3(), []);
+  const seg = MOBILE ? 96 : 128;
+  useFrame(({ clock }, d) => {
+    if (grp.current) grp.current.position.copy(orbitPos(b, clock.elapsedTime, pos));
+    if (earth.current) earth.current.rotation.y += d * b.rot;
+    if (clouds.current) clouds.current.rotation.y += d * (b.rot + 0.012);
+  });
+  return (
+    <group ref={grp}>
+      <group rotation={[b.tilt, 0, 0.04]} scale={b.scale}>
+        <mesh ref={earth}>
+          <sphereGeometry args={[1, seg, seg]} />
+          <meshStandardMaterial map={day} normalMap={normal} normalScale={new THREE.Vector2(1, 1)} emissiveMap={lights} emissive={new THREE.Color("#ffd9a0")} emissiveIntensity={0.9} roughness={0.85} metalness={0.05} />
+        </mesh>
+        {/* 雲レイヤーは全画面オーバードロー＝フィルレート負荷。弱デバイス(MOBILE/LITE)では省略して保護 */}
+        {!MOBILE && (
+          <mesh ref={clouds} scale={1.012}>
+            <sphereGeometry args={[1, 96, 96]} />
+            <meshStandardMaterial map={clud} alphaMap={clud} transparent opacity={0.9} depthWrite={false} roughness={1} />
+          </mesh>
+        )}
+        <AtmosphereRim color="#5fb8ff" />
+      </group>
+    </group>
+  );
+}
+// 太陽系の全惑星（公転）。地球のみフル再現（雲/夜景）。
 function SolarSystem() {
   return (
     <>
       {BODIES.map((b) => (
         <Suspense key={b.key} fallback={null}>
-          <SolarBody b={b} />
+          {b.key === "earth" ? <SolarEarth /> : <SolarBody b={b} />}
         </Suspense>
       ))}
     </>
@@ -251,7 +304,7 @@ function OrbitRings() {
 // 衛星：親惑星を周回（親も公転で動くので毎フレーム親の現在位置を基準にする）。
 type MoonDef = { parent: string; radius: number; size: number; color: string; speed: number; phase: number; incline: number };
 const MOONS: MoonDef[] = [
-  { parent: "earth",   radius: 1.4, size: 0.10, color: "#cccccc", speed: 0.45, phase: 0.5, incline: 0.2 },  // 月
+  { parent: "earth",   radius: 1.4, size: 0.10, color: "#ffffff", speed: 0.45, phase: 0.5, incline: 0.2 },  // 月（実テクスチャを素のまま）
   { parent: "jupiter", radius: 3.2, size: 0.12, color: "#e8d27a", speed: 0.5,  phase: 0,   incline: 0.2 },  // Io
   { parent: "jupiter", radius: 4.0, size: 0.11, color: "#e8e0d0", speed: 0.38, phase: 1.6, incline: 0.15 }, // Europa
   { parent: "jupiter", radius: 4.9, size: 0.16, color: "#b9a98a", speed: 0.3,  phase: 3.0, incline: 0.25 }, // Ganymede
@@ -260,8 +313,17 @@ const MOONS: MoonDef[] = [
 ];
 function Moon3D({ m }: { m: MoonDef }) {
   const ref = useRef<THREE.Mesh>(null);
+  // 月の実テクスチャ＋法線＋変位を全衛星で共有（drei が URL でキャッシュ＝GPU上は1枚）。
+  // 個別テクスチャの無いガリレオ衛星/タイタンは color で色付けし、クレーター質感を流用＝のっぺり/ギザギザ解消。
+  const [map, nrm] = useTexture(["/assets/planet/moon.webp", "/assets/planet/moon_n.webp"]);
+  useMemo(() => {
+    map.colorSpace = THREE.SRGBColorSpace;
+    map.anisotropy = 8;
+    nrm.anisotropy = 8;
+  }, [map, nrm]);
   const pp = useMemo(() => new THREE.Vector3(), []);
-  useFrame(({ clock }) => {
+  const seg = MOBILE ? 56 : 96; // 旧20分割のギザギザを解消
+  useFrame(({ clock }, d) => {
     if (!ref.current) return;
     const t = clock.elapsedTime;
     orbitPos(BODY[m.parent], t, pp);
@@ -271,11 +333,22 @@ function Moon3D({ m }: { m: MoonDef }) {
       pp.y + Math.sin(a) * m.radius * m.incline,
       pp.z + Math.sin(a) * m.radius,
     );
+    ref.current.rotation.y += d * 0.06;
   });
   return (
     <mesh ref={ref}>
-      <sphereGeometry args={[m.size, 20, 20]} />
-      <meshStandardMaterial color={m.color} roughness={1} metalness={0} />
+      <sphereGeometry args={[m.size, seg, seg]} />
+      <meshStandardMaterial
+        map={map}
+        color={m.color}
+        normalMap={nrm}
+        normalScale={new THREE.Vector2(1.3, 1.3)}
+        displacementMap={map}
+        displacementScale={m.size * 0.05}
+        displacementBias={-m.size * 0.025}
+        roughness={1}
+        metalness={0}
+      />
     </mesh>
   );
 }
@@ -1014,6 +1087,7 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const _up = new THREE.Vector3(0, 1, 0);
 const _radial = new THREE.Vector3();
 const _tan = new THREE.Vector3();
+const _focus = new THREE.Vector3();
 // 天体 key を t 時点で良く見るカメラ位置(outP)・注視点(outL)を算出。惑星は公転で動くのでこれで追従できる。
 function bodyCamera(key: string, t: number, outP: THREE.Vector3, outL: THREE.Vector3) {
   if (key === "galaxy") {
@@ -1217,7 +1291,11 @@ function Rig() {
       if (_radial.lengthSq() > 1e-4) _radial.normalize();
       target.addScaledVector(_radial, pull * segR * 0.7); // 外側へ後退（系の外から見る）
       target.y += pull * (segR * 0.5 + 5); // 上昇（黄道面を見下ろす広い画）
-      look.lerp(SUN_POS, pull * 0.5); // 注視点を太陽寄りへ引き、系の中心＝全体を見せる
+      // 注視点：太陽を中心に保ちつつ、対象天体(l1=次の惑星)へ f に応じて徐々にフォーカス。
+      //   focusPoint = 太陽→対象を (0.18→0.85) で内分＝序盤は太陽中心の俯瞰、終盤は対象へ寄る。
+      //   これで海王星/冥王星など遠い対象が「一瞬で過ぎる」のを防ぎ、ずっと画面内で徐々に主役化する。
+      _focus.copy(SUN_POS).lerp(l1, 0.18 + 0.67 * f);
+      look.lerp(_focus, pull); // 引きの最中だけ俯瞰中心へ寄せる（停止点 pull=0 では通常フレーミング）
     }
     // 初回はスナップ（ロード時に原点からスウープしない）
     if (!inited.current) {
