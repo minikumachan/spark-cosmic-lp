@@ -18,6 +18,7 @@ type V = {
   rocky?: boolean;
   ring?: boolean;
   sun?: boolean;
+  galaxy?: boolean;
   atmo?: string;
   facts: [string, string][];
 };
@@ -32,6 +33,7 @@ const PLANETS: V[] = [
   { key: "saturn", name: "土星", en: "Saturn", src: "/assets/planet/saturn.webp", ring: true, atmo: "#e6c77a", facts: [["直径", "116,460 km"], ["太陽から", "9.5 AU"], ["公転周期", "29.5 年"], ["環", "主要 7 本"]] },
   { key: "uranus", name: "天王星", en: "Uranus", src: "/assets/planet/uranus.webp", atmo: "#9fe8e0", facts: [["直径", "50,724 km"], ["太陽から", "19.2 AU"], ["公転周期", "84 年"], ["自転軸", "98°（横倒し）"]] },
   { key: "neptune", name: "海王星", en: "Neptune", src: "/assets/planet/neptune.webp", atmo: "#5b8cff", facts: [["直径", "49,244 km"], ["太陽から", "30 AU"], ["公転周期", "165 年"], ["最大風速", "2,100 km/h"]] },
+  { key: "galaxy", name: "銀河", en: "Galaxy", galaxy: true, src: "/assets/planet/sun.webp", facts: [["直径", "約 10 万光年"], ["恒星数", "約 2,000〜4,000 億"], ["所属", "局部銀河群 → おとめ座超銀河団"], ["太陽系の位置", "オリオン腕（中心から約 2.6 万光年）"]] },
 ];
 
 const atmoVert = /* glsl */ `varying vec3 vN; varying vec3 vView;
@@ -166,29 +168,216 @@ const VPOS: Record<string, [number, number, number]> = {
   saturn: [46, -2, -4],
   uranus: [62, 2, -6],
   neptune: [78, -1, -3],
+  galaxy: [0, 0, 0],
 };
 const vpos = (key: string) => new THREE.Vector3(...(VPOS[key] ?? [0, 0, 0]));
 
 // 切替時：OrbitControls の target を新天体へ滑らかに移動。
 // → カメラは offset を保ったまま「空間を移動し、向き直りながら近づく」飛行になる。
 type Controls = { enabled: boolean; update: () => void; target: THREE.Vector3 };
-function ViewerCameraRig({ target, controls }: { target: THREE.Vector3; controls: React.RefObject<Controls | null> }) {
+function ViewerCameraRig({ target, controls, galaxy }: { target: THREE.Vector3; controls: React.RefObject<Controls | null>; galaxy?: boolean }) {
   const inited = useRef(false);
+  const wasGalaxy = useRef(false);
+  // 銀河は天文学的スケール＝遠くから俯瞰する初期枠
+  const frameGalaxy = (camera: THREE.Camera) => {
+    camera.position.set(0, 26, 92);
+    controls.current!.target.set(0, 0, 0);
+    controls.current!.update();
+  };
+  const framePlanet = (camera: THREE.Camera) => {
+    camera.position.set(target.x, target.y + 0.4, target.z + 4);
+    controls.current!.target.copy(target);
+    controls.current!.update();
+  };
   useFrame(({ camera }, d) => {
     if (!controls.current) return;
     if (!inited.current) {
-      // 開いた瞬間は飛ばずに最初の天体を即フレーミング
       inited.current = true;
-      controls.current.target.copy(target);
-      camera.position.set(target.x, target.y + 0.4, target.z + 4);
-      controls.current.update();
+      wasGalaxy.current = !!galaxy;
+      if (galaxy) frameGalaxy(camera); else framePlanet(camera);
       return;
     }
-    const k = 1 - Math.exp(-2.6 * d); // フレームレート非依存の滑らかな追従＝惑星へ飛んで近づく
+    // 惑星⇄銀河の切替時はスケールが桁違いなのでカメラ枠を作り直す（lerpでは寄れない/引けない）
+    if (galaxy && !wasGalaxy.current) { wasGalaxy.current = true; frameGalaxy(camera); return; }
+    if (!galaxy && wasGalaxy.current) { wasGalaxy.current = false; framePlanet(camera); return; }
+    if (galaxy) { controls.current.update(); return; } // 銀河中は自由に周回/ズーム/パン
+    const k = 1 - Math.exp(-2.6 * d); // 惑星間は滑らかに飛んで近づく
     controls.current.target.lerp(target, k);
     controls.current.update();
   });
   return null;
+}
+
+/* ───────── 銀河ビュー：渦巻銀河（天文学的数の星・差動回転）＋衛星銀河群（銀河の中の銀河）
+   ＋無数の遠方銀河（集まる銀河／宇宙の大規模構造）＋太陽系の位置。拡大で星・銀河が見えてくる。 ───────── */
+let _glow: THREE.Texture | null = null;
+function galaxyGlow(): THREE.Texture {
+  if (_glow) return _glow;
+  const c = document.createElement("canvas");
+  c.width = c.height = 128;
+  const ctx = c.getContext("2d");
+  if (ctx) {
+    const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    g.addColorStop(0, "rgba(255,255,255,1)");
+    g.addColorStop(0.3, "rgba(255,240,210,0.5)");
+    g.addColorStop(1, "rgba(255,240,210,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 128, 128);
+  }
+  _glow = new THREE.CanvasTexture(c);
+  _glow.generateMipmaps = false;
+  _glow.minFilter = THREE.LinearFilter;
+  return _glow;
+}
+// 渦巻銀河は差動回転（中心ほど速い）。点は gl_PointCoord で丸く discard。
+const galaxyVert = `uniform float uTime; uniform float uSize;
+attribute vec3 color; attribute float aScale; varying vec3 vColor;
+void main(){
+  vColor = color; vec3 p = position; float r = length(p.xz);
+  float ang = uTime * 0.10 * (10.0 / (r + 7.0));
+  float c = cos(ang), s = sin(ang);
+  vec3 rp = vec3(p.x*c - p.z*s, p.y, p.x*s + p.z*c);
+  vec4 mv = modelViewMatrix * vec4(rp, 1.0);
+  gl_PointSize = uSize * aScale * (320.0 / -mv.z);
+  gl_Position = projectionMatrix * mv;
+}`;
+const pointVert = `uniform float uSize;
+attribute vec3 color; attribute float aScale; varying vec3 vColor;
+void main(){
+  vColor = color;
+  vec4 mv = modelViewMatrix * vec4(position, 1.0);
+  gl_PointSize = uSize * aScale * (320.0 / -mv.z);
+  gl_Position = projectionMatrix * mv;
+}`;
+const pointFrag = `varying vec3 vColor;
+void main(){
+  float d = distance(gl_PointCoord, vec2(0.5));
+  if (d > 0.5) discard;
+  float s = pow(1.0 - smoothstep(0.0, 0.5, d), 1.7);
+  gl_FragColor = vec4(vColor, s);
+}`;
+const gR = (power: number) => Math.pow(Math.random(), power) * (Math.random() < 0.5 ? 1 : -1);
+function buildGeo(pos: Float32Array, col: Float32Array, sca: Float32Array) {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  g.setAttribute("color", new THREE.BufferAttribute(col, 3));
+  g.setAttribute("aScale", new THREE.BufferAttribute(sca, 1));
+  return g;
+}
+function spiralGeo(count: number, radius: number, branches: number, spin: number, randomness: number, randPow: number, inside: string, outside: string, thickness: number) {
+  const pos = new Float32Array(count * 3), col = new Float32Array(count * 3), sca = new Float32Array(count);
+  const cIn = new THREE.Color(inside), cOut = new THREE.Color(outside), cHII = new THREE.Color("#ff6ab0"), bulgeCol = new THREE.Color("#fff3d6"), t = new THREE.Color();
+  for (let i = 0; i < count; i++) {
+    const i3 = i * 3;
+    const r = Math.pow(Math.random(), 1.7) * radius;
+    const branchAngle = ((i % branches) / branches) * Math.PI * 2;
+    const spinAngle = r * spin;
+    const bulge = Math.max(0, 1 - r / (radius * 0.18));
+    pos[i3] = Math.cos(branchAngle + spinAngle) * r + gR(randPow) * randomness * r;
+    pos[i3 + 1] = gR(randPow) * randomness * r * thickness + gR(2.0) * bulge * radius * 0.14;
+    pos[i3 + 2] = Math.sin(branchAngle + spinAngle) * r + gR(randPow) * randomness * r;
+    t.copy(cIn).lerp(cOut, Math.min(r / radius, 1));
+    let sc = 0.6 + Math.random() * 1.2;
+    if (r > radius * 0.25 && Math.random() < 0.03) { t.copy(cHII); sc *= 2.4; }       // HII領域（星形成）
+    if (bulge > 0) { t.lerp(bulgeCol, bulge * 0.6); sc *= 1 + bulge * 1.6; }           // 中心バルジは明るく大きく
+    col[i3] = t.r; col[i3 + 1] = t.g; col[i3 + 2] = t.b; sca[i] = sc;
+  }
+  return buildGeo(pos, col, sca);
+}
+function ellipticalGeo(count: number, size: number, edge: string) {
+  const pos = new Float32Array(count * 3), col = new Float32Array(count * 3), sca = new Float32Array(count);
+  const cCore = new THREE.Color("#fff2d8"), cEdge = new THREE.Color(edge), t = new THREE.Color();
+  for (let i = 0; i < count; i++) {
+    const i3 = i * 3;
+    const r = Math.pow(Math.random(), 2.4) * size;
+    const th = Math.acos(2 * Math.random() - 1), ph = Math.random() * Math.PI * 2;
+    pos[i3] = r * Math.sin(th) * Math.cos(ph); pos[i3 + 1] = r * Math.cos(th) * 0.62; pos[i3 + 2] = r * Math.sin(th) * Math.sin(ph);
+    t.copy(cCore).lerp(cEdge, Math.min(r / size, 1));
+    col[i3] = t.r; col[i3 + 1] = t.g; col[i3 + 2] = t.b; sca[i] = 0.6 + Math.random() * 1.0;
+  }
+  return buildGeo(pos, col, sca);
+}
+function fieldGeo(count: number, rMin: number, rMax: number, palette: string[], sMin: number, sMax: number, bright: number) {
+  const pos = new Float32Array(count * 3), col = new Float32Array(count * 3), sca = new Float32Array(count);
+  const cols = palette.map((c) => new THREE.Color(c)), t = new THREE.Color();
+  for (let i = 0; i < count; i++) {
+    const i3 = i * 3;
+    const r = rMin + Math.pow(Math.random(), 0.7) * (rMax - rMin);
+    const th = Math.acos(2 * Math.random() - 1), ph = Math.random() * Math.PI * 2;
+    pos[i3] = r * Math.sin(th) * Math.cos(ph); pos[i3 + 1] = r * Math.cos(th); pos[i3 + 2] = r * Math.sin(th) * Math.sin(ph);
+    t.copy(cols[(Math.random() * cols.length) | 0]).multiplyScalar(bright * (0.5 + Math.random() * 0.5));
+    col[i3] = t.r; col[i3 + 1] = t.g; col[i3 + 2] = t.b; sca[i] = sMin + Math.random() * (sMax - sMin);
+  }
+  return buildGeo(pos, col, sca);
+}
+const GAL_RADIUS = 30, GAL_BRANCHES = 5, GAL_SPIN = 0.26;
+function makeMat(vert: string, size: number, withTime = false) {
+  return new THREE.ShaderMaterial({
+    uniforms: withTime ? { uTime: { value: 0 }, uSize: { value: size } } : { uSize: { value: size } },
+    vertexShader: vert, fragmentShader: pointFrag, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  });
+}
+function GalaxyScene() {
+  const satGroup = useRef<THREE.Group>(null);
+  const markerG = useRef<THREE.Group>(null);
+  const mainGeo = useMemo(() => spiralGeo(LITE ? 26000 : 110000, GAL_RADIUS, GAL_BRANCHES, GAL_SPIN, 0.22, 3, "#fff0d0", "#3f78ff", 0.07), []);
+  const satellites = useMemo(() => {
+    const N = LITE ? 9 : 16;
+    const sp: [string, string][] = [["#ffe0b0", "#5fa0ff"], ["#ffd0b0", "#8a6aff"], ["#fff0d8", "#4d8aff"]];
+    const ell = ["#9fb6ff", "#ffc0a0", "#cfd6ff"];
+    const out: { pos: [number, number, number]; scale: number; rot: [number, number, number]; geo: THREE.BufferGeometry }[] = [];
+    for (let i = 0; i < N; i++) {
+      const ang = (i / N) * Math.PI * 2 + Math.random(), dist = 40 + Math.random() * 72, elev = (Math.random() - 0.5) * 52;
+      const spiral = Math.random() < 0.62;
+      const pair = sp[(Math.random() * sp.length) | 0];
+      const geo = spiral
+        ? spiralGeo(LITE ? 900 : 2600, 4, 2 + ((Math.random() * 3) | 0), 0.8 + Math.random() * 0.7, 0.4, 3, pair[0], pair[1], 0.16)
+        : ellipticalGeo(LITE ? 700 : 1700, 3.4, ell[(Math.random() * ell.length) | 0]);
+      out.push({ pos: [Math.cos(ang) * dist, elev, Math.sin(ang) * dist], scale: 2.2 + Math.random() * 5, rot: [Math.random() * 0.9, Math.random() * Math.PI, Math.random() * 0.9], geo });
+    }
+    return out;
+  }, []);
+  const distantGeo = useMemo(() => fieldGeo(LITE ? 1200 : 2600, 70, 135, ["#ffd9a0", "#bcd0ff", "#ffb0d0", "#a0d8ff", "#fff0d0"], 1.4, 3.6, 0.7), []);
+  const starGeo = useMemo(() => fieldGeo(LITE ? 5000 : 16000, 20, 132, ["#ffffff", "#cfe0ff", "#ffe6c2"], 0.5, 1.4, 1.0), []);
+  const mainMat = useMemo(() => makeMat(galaxyVert, 1.05, true), []);
+  const satMat = useMemo(() => makeMat(pointVert, 0.9), []);
+  const distantMat = useMemo(() => makeMat(pointVert, 2.4), []);
+  const starMat = useMemo(() => makeMat(pointVert, 0.7), []);
+  const markerLocal = useMemo<[number, number, number]>(() => {
+    const r = 18, a = r * GAL_SPIN; // branch 0 のアーム上
+    return [Math.cos(a) * r, 0.4, Math.sin(a) * r];
+  }, []);
+  useEffect(() => () => {
+    mainGeo.dispose(); distantGeo.dispose(); starGeo.dispose();
+    satellites.forEach((s) => s.geo.dispose());
+    mainMat.dispose(); satMat.dispose(); distantMat.dispose(); starMat.dispose();
+  }, [mainGeo, distantGeo, starGeo, satellites, mainMat, satMat, distantMat, starMat]);
+  useFrame((_, d) => {
+    mainMat.uniforms.uTime.value += d;
+    if (satGroup.current) satGroup.current.rotation.y += d * 0.015;
+    if (markerG.current) markerG.current.rotation.y += d * 0.04; // アームと同じ差動角(r=18)で公転
+  });
+  return (
+    <group>
+      <sprite scale={[16, 16, 1]}><spriteMaterial map={galaxyGlow()} color="#fff0d0" transparent opacity={0.6} depthWrite={false} blending={THREE.AdditiveBlending} /></sprite>
+      <sprite scale={[44, 44, 1]}><spriteMaterial map={galaxyGlow()} color="#ffcaa0" transparent opacity={0.13} depthWrite={false} blending={THREE.AdditiveBlending} /></sprite>
+      <points geometry={mainGeo} material={mainMat} />
+      <group ref={satGroup}>
+        {satellites.map((s, i) => (
+          <group key={i} position={s.pos} rotation={s.rot} scale={s.scale}>
+            <points geometry={s.geo} material={satMat} />
+          </group>
+        ))}
+      </group>
+      <points geometry={distantGeo} material={distantMat} />
+      <points geometry={starGeo} material={starMat} />
+      <group ref={markerG}>
+        <group position={markerLocal}>
+          <sprite scale={[2.6, 2.6, 1]}><spriteMaterial map={galaxyGlow()} color="#ffe08a" transparent opacity={0.9} depthWrite={false} blending={THREE.AdditiveBlending} /></sprite>
+        </group>
+      </group>
+    </group>
+  );
 }
 
 export default function PlanetViewer() {
@@ -245,16 +434,16 @@ export default function PlanetViewer() {
   return (
     <div role="dialog" aria-modal="true" aria-label="惑星鑑賞" className="pv-overlay">
       <style>{PV_CSS}</style>
-      <Canvas camera={{ position: [0, 0.3, 4], fov: 45 }} dpr={LITE ? 1 : [1, 2]} gl={{ antialias: !LITE, alpha: false, stencil: false, powerPreference: "high-performance" }} style={{ position: "absolute", inset: 0 }}>
+      <Canvas camera={{ position: [0, 0.3, 4], fov: 45, near: 0.05, far: 700 }} dpr={LITE ? 1 : [1, 2]} gl={{ antialias: !LITE, alpha: false, stencil: false, powerPreference: "high-performance" }} style={{ position: "absolute", inset: 0 }}>
         <color attach="background" args={["#04050b"]} />
         <ambientLight intensity={0.06} />
         <directionalLight position={[-16, 12, 24]} intensity={3.2} color="#fff4e6" />
         <directionalLight position={[12, -4, -12]} intensity={0.35} color="#6f9cff" />
-        <Stars radius={130} depth={80} count={LITE ? 1500 : 6000} factor={3.5} saturation={0.5} fade speed={0.22} />
+        {!p.galaxy && <Stars radius={130} depth={80} count={LITE ? 1500 : 6000} factor={3.5} saturation={0.5} fade speed={0.22} />}
         <Suspense fallback={null}>
-          {p.key === "earth" ? <ViewerEarth pos={vpos(p.key)} /> : <ViewerPlanet p={p} pos={vpos(p.key)} key={p.key} />}
+          {p.galaxy ? <GalaxyScene /> : p.key === "earth" ? <ViewerEarth pos={vpos(p.key)} /> : <ViewerPlanet p={p} pos={vpos(p.key)} key={p.key} />}
         </Suspense>
-        {prevIdx !== null && prevIdx !== idx && (
+        {prevIdx !== null && prevIdx !== idx && !p.galaxy && !PLANETS[prevIdx].galaxy && (
           <Suspense fallback={null}>
             {PLANETS[prevIdx].key === "earth" ? (
               <ViewerEarth pos={vpos(PLANETS[prevIdx].key)} />
@@ -263,13 +452,13 @@ export default function PlanetViewer() {
             )}
           </Suspense>
         )}
-        <ViewerCameraRig target={vpos(p.key)} controls={controls} />
+        <ViewerCameraRig target={vpos(p.key)} controls={controls} galaxy={p.galaxy} />
         {!LITE && (
           <EffectComposer>
             <Bloom luminanceThreshold={0.68} luminanceSmoothing={0.22} intensity={0.42} mipmapBlur radius={0.4} />
           </EffectComposer>
         )}
-        <OrbitControls ref={controls as never} enablePan={false} autoRotate autoRotateSpeed={0.4} minDistance={2.2} maxDistance={9} enableDamping dampingFactor={0.07} />
+        <OrbitControls ref={controls as never} enablePan={!!p.galaxy} autoRotate autoRotateSpeed={p.galaxy ? 0.25 : 0.4} minDistance={p.galaxy ? 3 : 2.2} maxDistance={p.galaxy ? 165 : 9} enableDamping dampingFactor={0.07} />
       </Canvas>
 
       <header className="pv-top">
