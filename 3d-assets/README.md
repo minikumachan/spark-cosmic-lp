@@ -1,27 +1,31 @@
-# 3D アセット（Blender 制作物の保管）
+# 3D アセット（Blender 制作物）
 
-このプロジェクトで Blender / Blender MCP を使って制作した 3D モデルの保管庫。
-本番サイト（コズミック版）の 3D 背景は **手続き的ジオメトリ + 自作 GLSL** で構成しており、これらの `.glb` は直接は読み込んでいない。制作物を失わないためのアーカイブとして残す。
+このプロジェクトで Blender / Blender MCP を使って制作した 3D モデルの編集可能ソース（`.blend`）の保管庫。
+本番で使用する書き出し済み `.glb` は [`../public/assets/3d/`](../public/assets/3d/) に置く。
 
-## ファイル
+## 本番で使用中（コズミック背景に `useGLTF` で読み込み）
 
-| ファイル | 内容 | 用途 |
+| ソース（3d-assets/） | 書き出し（public/assets/3d/） | 役割 |
 |---|---|---|
-| `hero-torusknot.glb` | トーラスノット（236KB・glTF binary v2・無圧縮 / Draco 不使用 = CSP `'self'` 運用のため） | 旧 **Editorial Kinetic** 版ヒーローで使用。自作 GLSL（墨 + 電撃ブルー）を適用していた。現在は本番から外し git 履歴に保持していたものを復元 |
-| `planet.blend` | 惑星（Icosphere・1,410 頂点 / 2,816 ポリゴン）の編集可能ソース | Blender で再編集する場合の元データ |
-| `planet.glb` | 上記惑星のエクスポート（67KB） | 配布 / 読み込み用 |
+| `hero-asteroids.blend` | `hero-asteroids.glb` | ヒーロー周辺を漂う小惑星群 |
+| `comet-nucleus.blend` | `comet-nucleus.glb` | 彗星の核 |
+| `spark-emblem.blend` | `spark-emblem.glb` | spark のエンブレム（宇宙空間に配置） |
 
-## 制作方法
+いずれも Draco 不使用の無圧縮 GLB（外部デコーダ取得が不要 ＝ 厳格 CSP `'self'` で配信できる）。
 
-- Blender MCP（socket 接続・port 9876）経由で Blender を操作して生成・編集。
-- トーラスノットは Editorial 期に生成し `public/models/hero.glb` として組み込んでいた（その後の整理で本番から除外）。
-- 惑星は Blender 上の Icosphere をベースにした実験モデル。
+## アーカイブ（本番未使用・保全用）
 
-## 使い方
+| ファイル | 内容 |
+|---|---|
+| `hero-torusknot.glb` | 旧 **Editorial Kinetic** 版ヒーローのトーラスノット（236KB・自作 GLSL を適用していた）。git 履歴から復元 |
+| `planet.blend` / `planet.glb` | 惑星（Icosphere・1,410 頂点）の実験モデル |
 
-- Blender で開く: `planet.blend` をダブルクリック、または Blender から開く。
-- コードから読み込む（必要時）: three.js / R3F の `useGLTF("/...glb")` 等。本番に載せる場合は `public/` 配下へ配置し、容量と CSP（Draco デコーダ等の外部取得）に注意。
+## 制作・運用メモ
+
+- Blender MCP（socket・port 9876）経由で Blender を操作して生成・編集。
+- 編集 → 再書き出しの流れ：`*.blend` を Blender で開いて編集 → `File > Export > glTF 2.0 (.glb)` で `public/assets/3d/` へ上書き。
+- 本番に載せる GLB は **Draco 圧縮を使わない**（Draco デコーダの外部取得が CSP に抵触するため）。容量はテクスチャ込みで数十 KB に収める。
 
 ## ライセンス / 帰属
 
-自作モデル。惑星表面テクスチャの出所は [`../public/assets/planet/CREDITS.txt`](../public/assets/planet/CREDITS.txt) を参照。
+自作モデル。惑星・宇宙テクスチャの出所は [`../public/assets/planet/CREDITS.txt`](../public/assets/planet/CREDITS.txt) を参照。
