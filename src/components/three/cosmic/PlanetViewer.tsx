@@ -3,6 +3,7 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, useTexture, Stars } from "@react-three/drei";
 import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import * as THREE from "three";
+import { LITE } from "./tier";
 
 /* 惑星鑑賞モード：フルスクリーン・OrbitControlsで自由に回転/ズーム。
    惑星セレクタ＋情報パネル。サイトを開くだけで動作（事前準備不要）。
@@ -13,6 +14,7 @@ type V = {
   name: string;
   en: string;
   src: string;
+  normalSrc?: string;
   rocky?: boolean;
   ring?: boolean;
   sun?: boolean;
@@ -21,11 +23,11 @@ type V = {
 };
 const PLANETS: V[] = [
   { key: "sun", name: "太陽", en: "Sun", src: "/assets/planet/sun.webp", sun: true, facts: [["直径", "1,392,700 km"], ["表面温度", "約 5,500 ℃"], ["太陽系質量", "99.86 %"], ["種別", "G型主系列星"]] },
-  { key: "mercury", name: "水星", en: "Mercury", src: "/assets/planet/mercury.webp", rocky: true, facts: [["直径", "4,879 km"], ["太陽から", "0.39 AU"], ["公転周期", "88 日"], ["大気", "ほぼ無し"]] },
+  { key: "mercury", name: "水星", en: "Mercury", src: "/assets/planet/mercury.webp", normalSrc: "/assets/planet/mercury_n.webp", rocky: true, facts: [["直径", "4,879 km"], ["太陽から", "0.39 AU"], ["公転周期", "88 日"], ["大気", "ほぼ無し"]] },
   { key: "venus", name: "金星", en: "Venus", src: "/assets/planet/venus.webp", atmo: "#e8c87a", facts: [["直径", "12,104 km"], ["太陽から", "0.72 AU"], ["公転周期", "225 日"], ["表面温度", "462 ℃"]] },
   { key: "earth", name: "地球", en: "Earth", src: "/assets/planet/earth_day.webp", rocky: true, atmo: "#5fb8ff", facts: [["直径", "12,742 km"], ["太陽から", "1.0 AU"], ["公転周期", "365 日"], ["衛星", "1（月）"]] },
-  { key: "moon", name: "月", en: "Moon", src: "/assets/planet/moon.webp", rocky: true, facts: [["直径", "3,474 km"], ["地球から", "384,400 km"], ["公転周期", "27.3 日"], ["重力", "地球の 1/6"]] },
-  { key: "mars", name: "火星", en: "Mars", src: "/assets/planet/mars.webp", rocky: true, atmo: "#ff7a4d", facts: [["直径", "6,779 km"], ["太陽から", "1.52 AU"], ["公転周期", "687 日"], ["衛星", "2"]] },
+  { key: "moon", name: "月", en: "Moon", src: "/assets/planet/moon.webp", normalSrc: "/assets/planet/moon_n.webp", rocky: true, facts: [["直径", "3,474 km"], ["地球から", "384,400 km"], ["公転周期", "27.3 日"], ["重力", "地球の 1/6"]] },
+  { key: "mars", name: "火星", en: "Mars", src: "/assets/planet/mars.webp", normalSrc: "/assets/planet/mars_n.webp", rocky: true, atmo: "#ff7a4d", facts: [["直径", "6,779 km"], ["太陽から", "1.52 AU"], ["公転周期", "687 日"], ["衛星", "2"]] },
   { key: "jupiter", name: "木星", en: "Jupiter", src: "/assets/planet/jupiter.webp", atmo: "#e8b87a", facts: [["直径", "139,820 km"], ["太陽から", "5.2 AU"], ["公転周期", "11.9 年"], ["衛星", "95+"]] },
   { key: "saturn", name: "土星", en: "Saturn", src: "/assets/planet/saturn.webp", ring: true, atmo: "#e6c77a", facts: [["直径", "116,460 km"], ["太陽から", "9.5 AU"], ["公転周期", "29.5 年"], ["環", "主要 7 本"]] },
   { key: "uranus", name: "天王星", en: "Uranus", src: "/assets/planet/uranus.webp", atmo: "#9fe8e0", facts: [["直径", "50,724 km"], ["太陽から", "19.2 AU"], ["公転周期", "84 年"], ["自転軸", "98°（横倒し）"]] },
@@ -58,8 +60,12 @@ function ViewerRing() {
 
 function ViewerPlanet({ p, pos }: { p: V; pos: THREE.Vector3 }) {
   const ref = useRef<THREE.Mesh>(null);
-  const map = useTexture(p.src);
-  useMemo(() => { map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 16; }, [map]);
+  const [map, nrm] = useTexture([p.src, p.normalSrc ?? p.src]);
+  useMemo(() => {
+    map.colorSpace = THREE.SRGBColorSpace;
+    map.anisotropy = 16;
+    if (p.normalSrc) nrm.anisotropy = 16;
+  }, [map, nrm, p.normalSrc]);
   const u = useMemo(() => ({ uColor: { value: new THREE.Color(p.atmo ?? "#88aaff") } }), [p.atmo]);
   const t = useRef(0);
   useFrame((_, d) => {
@@ -69,11 +75,22 @@ function ViewerPlanet({ p, pos }: { p: V; pos: THREE.Vector3 }) {
   return (
     <group position={pos} rotation={[0.25, 0, 0.08]}>
       <mesh ref={ref}>
-        <sphereGeometry args={[1, 128, 128]} />
+        <sphereGeometry args={[1, p.rocky ? 200 : 128, p.rocky ? 200 : 128]} />
         {p.sun ? (
           <meshBasicMaterial map={map} toneMapped={false} />
         ) : (
-          <meshStandardMaterial map={map} bumpMap={p.rocky ? map : null} bumpScale={p.rocky ? 0.07 : 0} roughness={p.rocky ? 0.96 : 0.55} metalness={0} />
+          <meshStandardMaterial
+            map={map}
+            normalMap={p.normalSrc ? nrm : undefined}
+            normalScale={p.normalSrc ? new THREE.Vector2(1.6, 1.6) : undefined}
+            bumpMap={p.rocky && !p.normalSrc ? map : null}
+            bumpScale={p.rocky && !p.normalSrc ? 0.07 : 0}
+            displacementMap={p.rocky ? map : undefined}
+            displacementScale={p.rocky ? 0.055 : 0}
+            displacementBias={p.rocky ? -0.028 : 0}
+            roughness={p.rocky ? 0.96 : 0.55}
+            metalness={0}
+          />
         )}
       </mesh>
       {p.sun && (
@@ -222,6 +239,8 @@ export default function PlanetViewer() {
   }, [open]);
   useEffect(() => {
     document.documentElement.style.overflow = open ? "hidden" : "";
+    // 背景3Dへ開閉を通知（オープン中は背景の描画を停止＝二重描画の解消）
+    window.dispatchEvent(new CustomEvent("cosmic:viewer", { detail: { open } }));
     return () => { document.documentElement.style.overflow = ""; };
   }, [open]);
   if (!open) return null;
@@ -229,12 +248,12 @@ export default function PlanetViewer() {
   return (
     <div role="dialog" aria-modal="true" aria-label="惑星鑑賞" className="pv-overlay">
       <style>{PV_CSS}</style>
-      <Canvas camera={{ position: [0, 0.3, 4], fov: 45 }} dpr={[1, 2]} gl={{ antialias: true, alpha: false, stencil: false }} style={{ position: "absolute", inset: 0 }}>
+      <Canvas camera={{ position: [0, 0.3, 4], fov: 45 }} dpr={LITE ? 1 : [1, 2]} gl={{ antialias: !LITE, alpha: false, stencil: false, powerPreference: "high-performance" }} style={{ position: "absolute", inset: 0 }}>
         <color attach="background" args={["#04050b"]} />
         <ambientLight intensity={0.06} />
         <directionalLight position={[-16, 12, 24]} intensity={3.2} color="#fff4e6" />
         <directionalLight position={[12, -4, -12]} intensity={0.35} color="#6f9cff" />
-        <Stars radius={130} depth={80} count={6000} factor={3.5} saturation={0.5} fade speed={0.22} />
+        <Stars radius={130} depth={80} count={LITE ? 1500 : 6000} factor={3.5} saturation={0.5} fade speed={0.22} />
         <Suspense fallback={null}>
           {p.key === "earth" ? <ViewerEarth pos={vpos(p.key)} /> : <ViewerPlanet p={p} pos={vpos(p.key)} key={p.key} />}
         </Suspense>
@@ -248,9 +267,11 @@ export default function PlanetViewer() {
           </Suspense>
         )}
         <ViewerCameraRig target={vpos(p.key)} controls={controls} />
-        <EffectComposer>
-          <Bloom luminanceThreshold={0.68} luminanceSmoothing={0.22} intensity={0.42} mipmapBlur radius={0.4} />
-        </EffectComposer>
+        {!LITE && (
+          <EffectComposer>
+            <Bloom luminanceThreshold={0.68} luminanceSmoothing={0.22} intensity={0.42} mipmapBlur radius={0.4} />
+          </EffectComposer>
+        )}
         <OrbitControls ref={controls as never} enablePan={false} autoRotate autoRotateSpeed={0.4} minDistance={2.2} maxDistance={9} enableDamping dampingFactor={0.07} />
       </Canvas>
 

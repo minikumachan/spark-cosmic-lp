@@ -1,19 +1,19 @@
 import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { ScreenQuad, useTexture, PerformanceMonitor, Environment, Lightformer } from "@react-three/drei";
+import { ScreenQuad, useTexture, useGLTF, PerformanceMonitor, Environment, Lightformer } from "@react-three/drei";
 import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
+import { LITE } from "./tier";
 
 /* ── 永続コズミック背景：星雲 + 星 + フォトリアル惑星群 + 粒子銀河。
    スクロールで各セクションごとに別の実在惑星へ遷移する「旅」。
    地球(hero)→月→火星→木星→土星(環)→海王星→銀河(contact)。
    軽量化: 全テクスチャWebP(計~0.6MB)、モバイルは粒子/星雲/dpr削減、非表示時は描画停止。 ── */
 
-const GX = -22, GY = 6.5, GZ = -40; // 銀河の位置（旅の終点・遠方）
+const GX = 0, GY = 16, GZ = -110; // 銀河の位置（太陽系の外・旅の終点・遠方）
 
-const MOBILE =
-  typeof window !== "undefined" &&
-  (window.innerWidth < 820 || (navigator.hardwareConcurrency || 8) <= 4);
+// 軽量ティア（狭幅 or 低コア or 非力/ソフトGPU）。判定は ./tier に集約。
+const MOBILE = LITE;
 
 // ── nebula（オクターブ数を端末で出し分け＝軽量化） ──
 const nebulaVert = /* glsl */ `void main(){ gl_Position = vec4(position.xy, 0.0, 1.0); }`;
@@ -142,34 +142,32 @@ function AtmosphereRim({ color }: { color: string }) {
   );
 }
 
-type PlanetDef = {
-  src: string;
-  pos: [number, number, number];
-  scale: number;
-  rot: number;
-  tilt: number;
-  ring?: boolean;
-  faintRing?: boolean;
-  rocky?: boolean;
-  bump?: number;
-  normalSrc?: string;
-  atmo?: string;
+// ── 太陽系（heliocentric）。太陽を中心に、軌道半径順に惑星を黄道面(XZ)で公転させる。
+//    位置は「初期角 + 経過時間×公転速度」で決定論的に算出するので、カメラ側も同じ式で
+//    各惑星の現在位置を読み、公転する惑星を追従フレーミングできる。半径/速度は様式化(実比は不可能)。 ──
+const SUN_POS = new THREE.Vector3(0, 0, 0);
+type Body = {
+  key: string; src: string; normalSrc?: string;
+  R: number; ang0: number; orbit: number; incl: number; // 軌道半径 / 初期角 / 公転角速度(rad/s) / 軌道傾斜
+  scale: number; rot: number; tilt: number;             // rot=自転(金星/天王星は逆行)
+  ring?: boolean; faintRing?: boolean; rocky?: boolean; atmo?: string;
 };
-// rot は実際の自転の向き/速さの比率（ガス惑星=速い・内惑星=遅い・金星/天王星=逆行）
-const PLANETS: PlanetDef[] = [
-  { src: "/assets/planet/moon.webp", normalSrc: "/assets/planet/moon_n.webp", pos: [-3, 1.8, -5.5], scale: 0.5, rot: 0.004, tilt: 0.2, rocky: true },
-  { src: "/assets/planet/mars.webp", normalSrc: "/assets/planet/mars_n.webp", pos: [-7.5, -2.6, -11.5], scale: 0.9, rot: 0.038, tilt: 0.35, rocky: true, atmo: "#ff7a4d" },
-  { src: "/assets/planet/jupiter.webp", pos: [-11.5, 4.2, -18.5], scale: 2.3, rot: 0.1, tilt: 0.18, atmo: "#e8b87a" },
-  { src: "/assets/planet/saturn.webp", pos: [-15.5, -2, -26], scale: 1.6, rot: 0.09, tilt: 0.42, ring: true, atmo: "#e6c77a" },
-  { src: "/assets/planet/neptune.webp", pos: [-19, 5.6, -33], scale: 1.2, rot: 0.06, tilt: 0.25, atmo: "#5b8cff" },
+const BODIES: Body[] = [
+  { key: "mercury", src: "/assets/planet/mercury.webp", normalSrc: "/assets/planet/mercury_n.webp", R: 5.0,  ang0: 0.6, orbit: 0.050,  incl: 0.10, scale: 0.30, rot: 0.004,  tilt: 0.03, rocky: true },
+  { key: "venus",   src: "/assets/planet/venus.webp",   R: 7.5,  ang0: 2.3, orbit: 0.038,  incl: 0.06, scale: 0.50, rot: -0.002, tilt: 0.05, atmo: "#e8c87a" },
+  { key: "earth",   src: "/assets/planet/earth_day.webp", normalSrc: "/assets/planet/earth_normal.webp", R: 10.5, ang0: 4.0, orbit: 0.030, incl: 0.0,  scale: 0.55, rot: 0.05, tilt: 0.33, rocky: true, atmo: "#5fb8ff" },
+  { key: "mars",    src: "/assets/planet/mars.webp",    normalSrc: "/assets/planet/mars_n.webp", R: 14.5, ang0: 5.4, orbit: 0.024,  incl: 0.05, scale: 0.40, rot: 0.048,  tilt: 0.35, rocky: true, atmo: "#ff7a4d" },
+  { key: "jupiter", src: "/assets/planet/jupiter.webp", R: 23,   ang0: 1.1, orbit: 0.013,  incl: 0.03, scale: 1.8,  rot: 0.10,   tilt: 0.05, atmo: "#e8b87a" },
+  { key: "saturn",  src: "/assets/planet/saturn.webp",  R: 31,   ang0: 3.4, orbit: 0.0092, incl: 0.04, scale: 1.5,  rot: 0.09,   tilt: 0.46, ring: true, atmo: "#e6c77a" },
+  { key: "uranus",  src: "/assets/planet/uranus.webp",  R: 39,   ang0: 5.9, orbit: 0.0066, incl: 0.08, scale: 1.05, rot: -0.05,  tilt: 1.5,  faintRing: true, atmo: "#9fe8e0" },
+  { key: "neptune", src: "/assets/planet/neptune.webp", R: 47,   ang0: 0.3, orbit: 0.0054, incl: 0.05, scale: 1.0,  rot: 0.06,   tilt: 0.30, atmo: "#5b8cff" },
 ];
-// 太陽系を完全再現する常在天体（水星・金星・天王星・冥王星）
-const AMBIENT: PlanetDef[] = [
-  { src: "/assets/planet/mercury.webp", normalSrc: "/assets/planet/mercury_n.webp", pos: [16, 5, 9], scale: 0.42, rot: 0.004, tilt: 0.03, rocky: true },
-  { src: "/assets/planet/venus.webp", pos: [10, 1.5, 5], scale: 0.85, rot: -0.002, tilt: 0.05, atmo: "#e8c87a" },
-  { src: "/assets/planet/uranus.webp", pos: [-17.5, 1.5, -30], scale: 1.3, rot: -0.055, tilt: 1.6, faintRing: true, atmo: "#9fe8e0" },
-  { src: "/assets/planet/moon.webp", normalSrc: "/assets/planet/moon_n.webp", pos: [-24, 3, -46], scale: 0.28, rot: 0.003, tilt: 0.1, rocky: true }, // 冥王星(遠方の準惑星)
-];
+const BODY: Record<string, Body> = Object.fromEntries(BODIES.map((b) => [b.key, b]));
+// 惑星の現在位置（決定論的＝カメラも同式で追従可能）
+function orbitPos(b: Body, t: number, out: THREE.Vector3) {
+  const a = b.ang0 + t * b.orbit;
+  return out.set(Math.cos(a) * b.R, Math.sin(a) * b.R * b.incl, Math.sin(a) * b.R);
+}
 
 function FaintRing() {
   const geo = useMemo(() => new THREE.RingGeometry(1.4, 1.95, 96), []);
@@ -180,68 +178,94 @@ function FaintRing() {
   );
 }
 
-function Planet({ src, pos, scale, rot, tilt, ring, faintRing, rocky, normalSrc, atmo }: PlanetDef) {
+// 1天体：太陽を公転（位置）＋自転（mesh回転）。
+function SolarBody({ b }: { b: Body }) {
+  const grp = useRef<THREE.Group>(null);
   const ref = useRef<THREE.Mesh>(null);
-  const [map, nrm] = useTexture([src, normalSrc ?? src]);
+  const [map, nrm] = useTexture([b.src, b.normalSrc ?? b.src]);
   useMemo(() => {
     map.colorSpace = THREE.SRGBColorSpace;
     map.anisotropy = 16;
   }, [map]);
-  useFrame((_, d) => {
-    if (ref.current) ref.current.rotation.y += d * rot;
+  const pos = useMemo(() => new THREE.Vector3(), []);
+  useFrame(({ clock }, d) => {
+    if (grp.current) grp.current.position.copy(orbitPos(b, clock.elapsedTime, pos));
+    if (ref.current) ref.current.rotation.y += d * b.rot;
   });
   return (
-    <group position={pos} rotation={[tilt, 0, 0.04]} scale={scale}>
-      <mesh ref={ref}>
-        <sphereGeometry args={[1, 96, 96]} />
-        <meshStandardMaterial
-          map={map}
-          normalMap={normalSrc ? nrm : null}
-          normalScale={normalSrc ? new THREE.Vector2(1.4, 1.4) : undefined}
-          roughness={rocky ? 0.95 : 0.6}
-          metalness={0}
-        />
-      </mesh>
-      {ring && <SaturnRing />}
-      {faintRing && <FaintRing />}
-      {atmo && <AtmosphereRim color={atmo} />}
+    <group ref={grp}>
+      <group rotation={[b.tilt, 0, 0.04]} scale={b.scale}>
+        <mesh ref={ref}>
+          <sphereGeometry args={[1, 96, 96]} />
+          <meshStandardMaterial
+            map={map}
+            normalMap={b.normalSrc ? nrm : null}
+            normalScale={b.normalSrc ? new THREE.Vector2(1.4, 1.4) : undefined}
+            roughness={b.rocky ? 0.95 : 0.6}
+            metalness={0}
+          />
+        </mesh>
+        {b.ring && <SaturnRing />}
+        {b.faintRing && <FaintRing />}
+        {b.atmo && <AtmosphereRim color={b.atmo} />}
+      </group>
     </group>
   );
 }
-
-// 常在天体（水星/金星/天王星）＝太陽系の完全再現
-function AmbientBodies() {
+// 太陽系の全惑星（公転）。
+function SolarSystem() {
   return (
     <>
-      {AMBIENT.map((p) => (
-        <Suspense key={p.src} fallback={null}>
-          <Planet {...p} />
+      {BODIES.map((b) => (
+        <Suspense key={b.key} fallback={null}>
+          <SolarBody b={b} />
         </Suspense>
       ))}
     </>
   );
 }
+// 軌道リング（黄道面の同心円）＝「太陽系の形」を可視化。淡い加算光。
+function OrbitRings() {
+  const rings = useMemo(
+    () => BODIES.map((b) => new THREE.RingGeometry(b.R - 0.035, b.R + 0.035, 160)),
+    [],
+  );
+  useEffect(() => () => rings.forEach((g) => g.dispose()), [rings]);
+  return (
+    <group rotation={[-Math.PI / 2, 0, 0]}>
+      {rings.map((g, i) => (
+        <mesh key={i} geometry={g}>
+          <meshBasicMaterial color="#6f93dd" transparent opacity={0.26} side={THREE.DoubleSide} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
+        </mesh>
+      ))}
+    </group>
+  );
+}
 
-// 衛星（ガス惑星を周回）：木星=ガリレオ衛星4＋土星=タイタン
-type MoonDef = { center: [number, number, number]; radius: number; size: number; color: string; speed: number; phase: number; incline: number };
+// （旧 AmbientBodies は廃止。全惑星は SolarSystem が公転描画する）
+
+// 衛星：親惑星を周回（親も公転で動くので毎フレーム親の現在位置を基準にする）。
+type MoonDef = { parent: string; radius: number; size: number; color: string; speed: number; phase: number; incline: number };
 const MOONS: MoonDef[] = [
-  // Jupiter [-11.5,4.2,-18.5]（ガリレオ衛星）
-  { center: [-11.5, 4.2, -18.5], radius: 3.4, size: 0.12, color: "#e8d27a", speed: 0.5, phase: 0, incline: 0.2 }, // Io
-  { center: [-11.5, 4.2, -18.5], radius: 4.2, size: 0.11, color: "#e8e0d0", speed: 0.38, phase: 1.6, incline: 0.15 }, // Europa
-  { center: [-11.5, 4.2, -18.5], radius: 5.1, size: 0.16, color: "#b9a98a", speed: 0.3, phase: 3.0, incline: 0.25 }, // Ganymede
-  { center: [-11.5, 4.2, -18.5], radius: 6.2, size: 0.15, color: "#8a8378", speed: 0.24, phase: 4.5, incline: 0.1 }, // Callisto
-  // Saturn [-15.5,-2,-26]（タイタン）
-  { center: [-15.5, -2, -26], radius: 3.6, size: 0.14, color: "#d8a85a", speed: 0.3, phase: 2.0, incline: 0.3 }, // Titan
+  { parent: "earth",   radius: 1.4, size: 0.10, color: "#cccccc", speed: 0.45, phase: 0.5, incline: 0.2 },  // 月
+  { parent: "jupiter", radius: 3.2, size: 0.12, color: "#e8d27a", speed: 0.5,  phase: 0,   incline: 0.2 },  // Io
+  { parent: "jupiter", radius: 4.0, size: 0.11, color: "#e8e0d0", speed: 0.38, phase: 1.6, incline: 0.15 }, // Europa
+  { parent: "jupiter", radius: 4.9, size: 0.16, color: "#b9a98a", speed: 0.3,  phase: 3.0, incline: 0.25 }, // Ganymede
+  { parent: "jupiter", radius: 6.0, size: 0.15, color: "#8a8378", speed: 0.24, phase: 4.5, incline: 0.1 },  // Callisto
+  { parent: "saturn",  radius: 3.6, size: 0.14, color: "#d8a85a", speed: 0.3,  phase: 2.0, incline: 0.3 },  // Titan
 ];
 function Moon3D({ m }: { m: MoonDef }) {
   const ref = useRef<THREE.Mesh>(null);
+  const pp = useMemo(() => new THREE.Vector3(), []);
   useFrame(({ clock }) => {
     if (!ref.current) return;
-    const a = clock.elapsedTime * m.speed + m.phase;
+    const t = clock.elapsedTime;
+    orbitPos(BODY[m.parent], t, pp);
+    const a = t * m.speed + m.phase;
     ref.current.position.set(
-      m.center[0] + Math.cos(a) * m.radius,
-      m.center[1] + Math.sin(a) * m.radius * m.incline,
-      m.center[2] + Math.sin(a) * m.radius,
+      pp.x + Math.cos(a) * m.radius,
+      pp.y + Math.sin(a) * m.radius * m.incline,
+      pp.z + Math.sin(a) * m.radius,
     );
   });
   return (
@@ -261,58 +285,21 @@ function Moons() {
   );
 }
 
-// 遅延ロード：接近したセクションの惑星のみマウント（初期は地球＋月だけ＝とてつもなく軽い）
-function Planets() {
-  const [upTo, setUpTo] = useState(1);
-  useEffect(() => {
-    const sels = ["#services", "#works", "#strengths", "#pricing", "#faq"];
-    let centers: number[] = [];
-    const measure = () => {
-      centers = sels.map((s) => {
-        const el = document.querySelector(s) as HTMLElement | null;
-        if (!el) return Number.POSITIVE_INFINITY;
-        const r = el.getBoundingClientRect();
-        return r.top + window.scrollY + r.height / 2;
-      });
-    };
-    const onScroll = () => {
-      const probe = window.scrollY + window.innerHeight;
-      let reached = 0;
-      for (let i = 0; i < centers.length; i++)
-        if (probe > centers[i] - window.innerHeight * 0.9) reached = i + 1;
-      setUpTo((v) => Math.max(v, Math.min(reached + 1, PLANETS.length))); // 次も先読み（ポップイン防止）
-    };
-    measure();
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", measure);
-    const t = window.setTimeout(() => {
-      measure();
-      onScroll();
-    }, 800);
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", measure);
-      window.clearTimeout(t);
-    };
-  }, []);
-  return (
-    <>
-      {PLANETS.slice(0, upTo).map((p) => (
-        <Suspense key={p.src} fallback={null}>
-          <Planet {...p} />
-        </Suspense>
-      ))}
-    </>
-  );
-}
+// （旧 Planets[遅延ロード] は廃止。SolarSystem が全惑星を常時公転描画。画面外は視錐台カリングで非描画、
+//   初露出時のアップロードストールは SceneWarmer のジオメトリ先食いで回避済み。）
 
-// FPS監視でDPRを自動調整（弱GPUで自動的に軽量化＝かくつかない）
+// DPRは固定（下記Canvas）。連続的なsetDprはレンダーターゲット再確保→スクロール中のストール(カクつき)を
+// 招くため避ける。PerformanceMonitorは「持続的に重い時に一段だけ下げる」用途に限定（弱GPU保護）。
 function AdaptiveQuality() {
   const setDpr = useThree((s) => s.setDpr);
+  const lowered = useRef(false);
   return (
     <PerformanceMonitor
-      onChange={({ factor }) => setDpr((MOBILE ? 0.75 : 0.9) + (MOBILE ? 0.25 : 0.6) * factor)}
+      onDecline={() => {
+        if (lowered.current) return;
+        lowered.current = true;
+        setDpr(MOBILE ? 0.8 : 1.0); // 一度だけ軽量化（以降は固定＝再確保ストールを出さない）
+      }}
     />
   );
 }
@@ -443,17 +430,78 @@ function RockBelt({ count, pos, rot, spin, ...rest }: { count: number } & RockPr
 function AsteroidBelt() {
   return (
     <RockBelt
-      count={MOBILE ? 70 : 135}
-      pos={[-9.5, -1, -15]}
-      rot={[0.34, 0, 0.08]}
-      radMin={6}
-      radMax={14}
-      yJit={1.4}
-      sMin={0.04}
-      sMax={0.17}
-      spin={0.03}
+      count={MOBILE ? 110 : 220}
+      pos={[0, 0, 0]}
+      rot={[0.06, 0, 0.04]}
+      radMin={16.5}
+      radMax={20}
+      yJit={0.35}
+      sMin={0.025}
+      sMax={0.055}
+      spin={0.02}
       tints={[[0.54, 0.49, 0.42], [0.46, 0.42, 0.38], [0.6, 0.52, 0.44], [0.4, 0.38, 0.36]]}
     />
+  );
+}
+
+// ヒーロー小惑星（Blender彫刻・works→strengthsの通過経路で大きく映る詳細岩。3個=数draw call・
+//   常時マウントでシェーダを初期コンパイル＝スクロール時ヒッチ無し。画面外はフラスタムカリングで描画スキップ）。
+const HERO_ROCKS_URL = "/assets/3d/hero-asteroids.glb";
+// カメラ経路から外側/下方へ逃がし、フレーム端で大きく映るが埋め尽くさない配置にする。
+const HERO_ROCKS: { key: string; pos: [number, number, number]; scale: number; tint: string; spin: number }[] = [
+  { key: "HeroRockA", pos: [-2.6, -4.2, -7.5], scale: 1.35, tint: "#9b8f80", spin: 0.05 },
+  { key: "HeroRockB", pos: [-5.6, -3.4, -12.2], scale: 1.7, tint: "#8f877c", spin: 0.035 },
+  { key: "HeroRockC", pos: [-14.2, 0.6, -16.0], scale: 1.5, tint: "#a39584", spin: 0.06 },
+];
+function HeroAsteroids() {
+  const gltf = useGLTF(HERO_ROCKS_URL);
+  const [moonMap, moonNrm] = useTexture(["/assets/planet/moon.webp", "/assets/planet/moon_n.webp"]);
+  useMemo(() => {
+    moonMap.colorSpace = THREE.SRGBColorSpace;
+    moonMap.anisotropy = 8;
+    moonNrm.anisotropy = 8;
+  }, [moonMap, moonNrm]);
+  const geos = useMemo(() => {
+    const out: Record<string, THREE.BufferGeometry> = {};
+    gltf.scene.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.isMesh) out[m.name] = m.geometry as THREE.BufferGeometry;
+    });
+    return out;
+  }, [gltf]);
+  const refs = useRef<(THREE.Mesh | null)[]>([]);
+  useFrame((_, d) => {
+    for (let i = 0; i < refs.current.length; i++) {
+      const m = refs.current[i];
+      if (m) {
+        m.rotation.y += d * HERO_ROCKS[i].spin;
+        m.rotation.x += d * 0.015;
+      }
+    }
+  });
+  return (
+    <>
+      {HERO_ROCKS.map((r, i) =>
+        geos[r.key] ? (
+          <mesh
+            key={r.key}
+            ref={(el) => { refs.current[i] = el; }}
+            geometry={geos[r.key]}
+            position={r.pos}
+            scale={r.scale}
+          >
+            <meshStandardMaterial
+              map={moonMap}
+              normalMap={moonNrm}
+              normalScale={new THREE.Vector2(2.3, 2.3)}
+              color={r.tint}
+              roughness={0.96}
+              metalness={0.02}
+            />
+          </mesh>
+        ) : null,
+      )}
+    </>
   );
 }
 
@@ -464,21 +512,21 @@ function Sun() {
   const core = useRef<THREE.Mesh>(null);
   useFrame((_, d) => { if (core.current) core.current.rotation.y += d * 0.012; });
   return (
-    <group position={[24, 8, 16]}>
+    <group position={[0, 0, 0]}>
       <mesh ref={core}>
-        <sphereGeometry args={[1.7, 48, 48]} />
+        <sphereGeometry args={[2.4, 48, 48]} />
         <meshBasicMaterial map={tex} toneMapped={false} fog={false} />
       </mesh>
       <mesh>
-        <sphereGeometry args={[2.2, 24, 24]} />
+        <sphereGeometry args={[3.1, 24, 24]} />
         <meshBasicMaterial color="#ffd98a" transparent opacity={0.28} blending={THREE.AdditiveBlending} depthWrite={false} fog={false} />
       </mesh>
       <mesh>
-        <sphereGeometry args={[3.6, 24, 24]} />
+        <sphereGeometry args={[5.2, 24, 24]} />
         <meshBasicMaterial color="#ffb84d" transparent opacity={0.12} blending={THREE.AdditiveBlending} depthWrite={false} fog={false} />
       </mesh>
       <mesh>
-        <sphereGeometry args={[7, 20, 20]} />
+        <sphereGeometry args={[12, 20, 20]} />
         <meshBasicMaterial color="#ff9a3d" transparent opacity={0.05} blending={THREE.AdditiveBlending} depthWrite={false} fog={false} />
       </mesh>
     </group>
@@ -617,20 +665,53 @@ function ShootingStars() {
   );
 }
 
-// 彗星（核＋たなびく尾・ゆっくり漂う）
+// 彗星（Blender製の氷岩核＋コマ＋たなびく尾・ゆっくり漂う）
+const COMET_URL = "/assets/3d/comet-nucleus.glb";
+function CometNucleusMesh() {
+  const gltf = useGLTF(COMET_URL);
+  const geo = useMemo(() => {
+    let g: THREE.BufferGeometry | null = null;
+    gltf.scene.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.isMesh && !g) g = m.geometry as THREE.BufferGeometry;
+    });
+    return g;
+  }, [gltf]);
+  const ref = useRef<THREE.Mesh>(null);
+  useFrame((_, d) => {
+    if (ref.current) {
+      ref.current.rotation.y += d * 0.16;
+      ref.current.rotation.x += d * 0.05;
+    }
+  });
+  if (!geo) return null;
+  return (
+    <mesh ref={ref} geometry={geo} scale={0.42}>
+      <meshStandardMaterial
+        color="#b2c2d8"
+        roughness={0.85}
+        metalness={0}
+        emissive={new THREE.Color("#3a5f8f")}
+        emissiveIntensity={0.28}
+      />
+    </mesh>
+  );
+}
 function Comet() {
   const tex = useMemo(() => softTexture(), []);
   const grp = useRef<THREE.Group>(null);
   useFrame(({ clock }) => {
-    if (grp.current) {
-      const t = clock.elapsedTime * 0.03;
-      grp.current.position.set(8 + Math.sin(t) * 3, 6 + Math.cos(t * 0.8) * 2, -14 + Math.sin(t * 0.5) * 3);
-    }
+    if (!grp.current) return;
+    const a = clock.elapsedTime * 0.05 + 1.0; // 太陽を公転（傾いた楕円軌道）
+    grp.current.position.set(Math.cos(a) * 38, Math.sin(a) * 13, Math.sin(a) * 20);
   });
   return (
-    <group ref={grp} position={[8, 6, -14]}>
+    <group ref={grp} position={[20, 11, 0]}>
+      <Suspense fallback={null}>
+        <CometNucleusMesh />
+      </Suspense>
       <sprite scale={[0.9, 0.9, 1]}>
-        <spriteMaterial map={tex} color="#cfe6ff" transparent opacity={0.95} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
+        <spriteMaterial map={tex} color="#cfe6ff" transparent opacity={0.6} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
       </sprite>
       <sprite position={[1.6, 0.7, 0]} scale={[5.5, 1.1, 1]}>
         <spriteMaterial map={tex} color="#9fd0ff" rotation={-0.4} transparent opacity={0.32} depthWrite={false} blending={THREE.AdditiveBlending} fog={false} />
@@ -733,15 +814,15 @@ function ConstellationLines() {
 function KuiperBelt() {
   return (
     <RockBelt
-      count={MOBILE ? 50 : 95}
-      pos={[-20, 4, -38]}
-      rot={[0.3, 0, 0.05]}
-      radMin={26}
-      radMax={40}
-      yJit={2.5}
-      sMin={0.05}
-      sMax={0.17}
-      spin={0.008}
+      count={MOBILE ? 70 : 130}
+      pos={[0, 0, 0]}
+      rot={[0.05, 0, 0.03]}
+      radMin={53}
+      radMax={66}
+      yJit={3}
+      sMin={0.04}
+      sMax={0.09}
+      spin={0.006}
       tints={[[0.6, 0.66, 0.75], [0.52, 0.58, 0.68], [0.66, 0.7, 0.78], [0.46, 0.5, 0.6]]}
     />
   );
@@ -845,17 +926,108 @@ function Galaxy() {
   );
 }
 
+// ── spark emblem（旅の終点・銀河手前の到達点ビーコン）。Blender製の結晶外殻＋スパーク核GLB。
+//    高コストな屈折は使わず「自発光核(Bloom内光)＋半透明標準外殻＋フレネルリム」で表現＝1オブジェクト・低コスト。 ──
+const EMBLEM_URL = "/assets/3d/spark-emblem.glb";
+function SparkEmblem() {
+  const gltf = useGLTF(EMBLEM_URL);
+  const grp = useRef<THREE.Group>(null);
+  // 名前でジオメトリを分離（glTFの名前サニタイズに頑健）
+  const { core, shell } = useMemo(() => {
+    let core: THREE.BufferGeometry | null = null;
+    let shell: THREE.BufferGeometry | null = null;
+    gltf.scene.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      if (/crystal/i.test(m.name)) shell = m.geometry as THREE.BufferGeometry;
+      else core = m.geometry as THREE.BufferGeometry;
+    });
+    return { core, shell };
+  }, [gltf]);
+  const rim = useMemo(() => ({ uColor: { value: new THREE.Color("#5fb0ff") } }), []);
+  useFrame((_, d) => {
+    if (grp.current) grp.current.rotation.y += d * 0.22;
+  });
+  if (!core || !shell) return null;
+  return (
+    <group ref={grp} position={[-22.3, 10.5, -30.7]} scale={1.9} rotation={[0.16, 0, 0.05]}>
+      {/* グロー核（常時発光の光の心臓・Bloomで内側から光る） */}
+      <mesh renderOrder={0}>
+        <sphereGeometry args={[0.17, 16, 16]} />
+        <meshBasicMaterial color="#eaf4ff" toneMapped={false} />
+      </mesh>
+      {/* スパーク核（回転でファセットがきらめく・自発光） */}
+      <mesh geometry={core} scale={1.15} renderOrder={1}>
+        <meshStandardMaterial
+          color="#dceaff"
+          emissive={new THREE.Color("#5ab4ff")}
+          emissiveIntensity={5.0}
+          roughness={0.3}
+          metalness={0}
+          toneMapped={false}
+        />
+      </mesh>
+      {/* 結晶外殻（半透明・低roughnessで環境反射＝宝石質感） */}
+      <mesh geometry={shell} renderOrder={2}>
+        <meshStandardMaterial
+          color="#2a5ae0"
+          metalness={0}
+          roughness={0.06}
+          transparent
+          opacity={0.34}
+          envMapIntensity={1.3}
+          depthWrite={false}
+        />
+      </mesh>
+      {/* フレネルリム（エッジの発光） */}
+      <mesh geometry={shell} scale={1.015} renderOrder={3}>
+        <shaderMaterial
+          vertexShader={atmoVert}
+          fragmentShader={rimFrag}
+          uniforms={rim}
+          side={THREE.BackSide}
+          blending={THREE.AdditiveBlending}
+          transparent
+          depthWrite={false}
+        />
+      </mesh>
+    </group>
+  );
+}
+
 // ── camera stops（各セクション＝各惑星）。DOMセクション位置で補間（セクション数に非依存） ──
-const STOPS: { sel: string; p: [number, number, number]; l: [number, number, number] }[] = [
-  { sel: "header.hero", p: [0, 0.2, 3.6], l: [2.15, -1.75, 0] }, // 地球
-  { sel: "#services", p: [-1.6, 2.4, -1.0], l: [-3, 1.8, -5.5] }, // 月
-  { sel: "#works", p: [-5.4, -1.6, -5.5], l: [-7.5, -2.6, -11.5] }, // 火星
-  { sel: "#strengths", p: [-8.8, 5.4, -9.5], l: [-11.5, 4.2, -18.5] }, // 木星
-  { sel: "#pricing", p: [-12.8, -0.6, -18], l: [-15.5, -2, -26] }, // 土星
-  { sel: "#faq", p: [-16.4, 6.8, -25], l: [-19, 5.6, -33] }, // 海王星
-  { sel: "#contact", p: [GX + 3, GY + 4.5, GZ + 15], l: [GX, GY, GZ] }, // 天の川級の銀河（接近・一粒一粒が巨大）
+// 各セクション＝太陽系を外へ旅する停止点（天体キー）。位置/注視点は天体の「現在の公転位置」から算出＝追従。
+const STOPS: { sel: string; key: string }[] = [
+  { sel: "header.hero", key: "earth" },
+  { sel: "#services", key: "mars" },
+  { sel: "#works", key: "jupiter" },
+  { sel: "#strengths", key: "saturn" },
+  { sel: "#pricing", key: "uranus" },
+  { sel: "#faq", key: "neptune" },
+  { sel: "#contact", key: "galaxy" },
 ];
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+const _up = new THREE.Vector3(0, 1, 0);
+const _radial = new THREE.Vector3();
+const _tan = new THREE.Vector3();
+// 天体 key を t 時点で良く見るカメラ位置(outP)・注視点(outL)を算出。惑星は公転で動くのでこれで追従できる。
+function bodyCamera(key: string, t: number, outP: THREE.Vector3, outL: THREE.Vector3) {
+  if (key === "galaxy") {
+    outL.set(GX, GY, GZ);
+    outP.set(0, 18, -96); // 太陽系の外縁から銀河を望む
+    return;
+  }
+  const b = BODY[key];
+  orbitPos(b, t, outL); // 注視点＝惑星の現在位置
+  _radial.copy(outL).normalize(); // 太陽→惑星方向
+  _tan.crossVectors(_radial, _up).normalize(); // 黄道面の接線
+  const dist = b.scale * 1.5 + 1.1; // 惑星を主役にしつつ近隣/太陽も少し入る
+  outP
+    .copy(outL)
+    .addScaledVector(_radial, -dist * 0.32) // やや太陽側＝昼側(明るい面)を見る
+    .addScaledVector(_tan, dist * 0.7) // 斜め＝3/4ビュー
+    .addScaledVector(_up, dist * 0.5 + 0.6); // やや上から（薄い小惑星帯の上を滑空）
+}
 
 // スクロールが閾値を超えたら latch（重い銀河/カイパーを終盤接近時のみマウント＝中盤までGPU軽量）
 function useScrollPast(frac: number) {
@@ -873,11 +1045,109 @@ function useScrollPast(frac: number) {
   return past;
 }
 
+// 初回ロード(LCP後)のアイドル中に発火＝重い遅延マウントを「スクロール前」に前倒しする合図。
+// これで全テクスチャ/ジオメトリ/シェーダがスクロール到達前に温まり、スクロール中のストール(カクつき)が消える。
+function useWarmup(delayMs = 700) {
+  const [warmed, setWarmed] = useState(false);
+  useEffect(() => {
+    const w = window as Window & {
+      requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    let idle = 0;
+    const to = window.setTimeout(() => {
+      if (w.requestIdleCallback) idle = w.requestIdleCallback(() => setWarmed(true), { timeout: 1200 });
+      else setWarmed(true);
+    }, delayMs);
+    return () => {
+      window.clearTimeout(to);
+      if (idle && w.cancelIdleCallback) w.cancelIdleCallback(idle);
+    };
+  }, [delayMs]);
+  return warmed;
+}
+
+// ウォーム時に全シェーダを非同期コンパイル＋全テクスチャをGPUへ事前アップロード（同期ストール回避）。
+// 遅れてデコードされるテクスチャを取りこぼさないよう、ウォームパスを数回反復する。
+function SceneWarmer({ warmed }: { warmed: boolean }) {
+  const gl = useThree((s) => s.gl);
+  const scene = useThree((s) => s.scene);
+  const camera = useThree((s) => s.camera);
+  const done = useRef(false);
+  useEffect(() => {
+    if (!warmed || done.current) return;
+    done.current = true;
+    const anyGl = gl as unknown as {
+      compileAsync?: (s: THREE.Scene, c: THREE.Camera) => Promise<unknown>;
+      compile: (s: THREE.Scene, c: THREE.Camera) => void;
+      initTexture: (t: THREE.Texture) => void;
+    };
+    const uploaded = new WeakSet<THREE.Texture>();
+    const warmPass = () => {
+      try {
+        if (anyGl.compileAsync) anyGl.compileAsync(scene, camera).catch(() => {});
+        else anyGl.compile(scene, camera);
+      } catch {}
+      scene.traverse((o) => {
+        const m = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
+        const mats = Array.isArray(m) ? m : m ? [m] : [];
+        for (const mat of mats) {
+          for (const key of ["map", "normalMap", "bumpMap", "alphaMap", "emissiveMap", "displacementMap"] as const) {
+            const tex = (mat as unknown as Record<string, THREE.Texture | null>)[key];
+            if (tex && tex.image && !uploaded.has(tex)) {
+              try { anyGl.initTexture(tex); uploaded.add(tex); } catch {}
+            }
+          }
+        }
+      });
+    };
+    // ジオメトリのGPUアップロードを強制：frustumCulledを一時OFFにし数フレーム描画→全バッファがアイドル中に
+    // アップロードされる（compileAsyncはシェーダのみ＝カリングされた遠方オブジェクトのジオメトリは初露出時に
+    // アップロードされスクロール中ストールになる。それをここで先食いする）。
+    let culledBack: THREE.Object3D[] = [];
+    const restoreCulling = () => {
+      for (const o of culledBack) o.frustumCulled = true;
+      culledBack = [];
+    };
+    const forceGeometryUpload = () => {
+      scene.traverse((o) => {
+        if (o.frustumCulled) { o.frustumCulled = false; culledBack.push(o); }
+      });
+      // frameloop="always"で毎フレーム描画されるので、数フレーム後にカリングを戻す
+      let n = 0;
+      const tick = () => {
+        if (++n < 6) { raf = requestAnimationFrame(tick); return; }
+        restoreCulling();
+      };
+      raf = requestAnimationFrame(tick);
+    };
+
+    // 最初は数フレーム待ち、その後 ~420ms 間隔で計7回（=遅延デコードのテクスチャも回収）、最後にジオメトリ強制アップロード
+    let raf = 0;
+    let timer = 0;
+    let pass = 0;
+    const schedule = () => {
+      warmPass();
+      if (++pass < 7) timer = window.setTimeout(schedule, 420);
+      else timer = window.setTimeout(forceGeometryUpload, 200);
+    };
+    let f = 0;
+    const startAfterFrames = () => {
+      if (++f < 6) { raf = requestAnimationFrame(startAfterFrames); return; }
+      schedule();
+    };
+    raf = requestAnimationFrame(startAfterFrames);
+    return () => { cancelAnimationFrame(raf); window.clearTimeout(timer); restoreCulling(); };
+  }, [warmed, gl, scene, camera]);
+  return null;
+}
+
 function Rig() {
   const centers = useRef<number[]>([]);
   const scrollY = useRef(0);
   const smoothScroll = useRef(0); // スクロール入力の平滑化値（離散ホイールを滑らかに）
-  const showGalaxy = useScrollPast(0.32); // 銀河は終盤接近時のみ（中盤までは遠方で不可視）
+  const warmed = useWarmup(); // LCP後アイドルで全要素を先行ウォーム＝スクロール中のストール(カクつき)を消す
+  const showGalaxy = useScrollPast(0.32) || warmed; // 銀河は終盤接近時 or アイドルウォーム時にマウント
   useEffect(() => {
     const measure = () => {
       centers.current = STOPS.map((s) => {
@@ -899,9 +1169,14 @@ function Rig() {
       window.clearTimeout(tid);
     };
   }, []);
-  const target = useMemo(() => new THREE.Vector3(...STOPS[0].p), []);
-  const look = useMemo(() => new THREE.Vector3(...STOPS[0].l), []);
-  const smoothLook = useRef(new THREE.Vector3(...STOPS[0].l));
+  const target = useMemo(() => new THREE.Vector3(), []);
+  const look = useMemo(() => new THREE.Vector3(), []);
+  const smoothLook = useRef(new THREE.Vector3());
+  const p0 = useMemo(() => new THREE.Vector3(), []);
+  const l0 = useMemo(() => new THREE.Vector3(), []);
+  const p1 = useMemo(() => new THREE.Vector3(), []);
+  const l1 = useMemo(() => new THREE.Vector3(), []);
+  const inited = useRef(false);
   useFrame(({ clock, camera }, delta) => {
     const t = clock.elapsedTime;
     const c = centers.current;
@@ -917,13 +1192,23 @@ function Rig() {
     let f = Number.isFinite(c0) && Number.isFinite(c1) && c1 > c0 ? (probe - c0) / (c1 - c0) : 0;
     f = Math.min(Math.max(f, 0), 1);
     f = f * f * (3 - 2 * f); // smoothstep（区間内をなめらかに）
-    const w0 = STOPS[i], w1 = STOPS[i + 1] ?? STOPS[i];
+    // 2つの停止天体の「現在の公転位置」からカメラ枠を算出し補間＝公転する惑星を追従フレーミング
+    bodyCamera(STOPS[i].key, t, p0, l0);
+    bodyCamera((STOPS[i + 1] ?? STOPS[i]).key, t, p1, l1);
     target.set(
-      lerp(w0.p[0], w1.p[0], f) + Math.sin(t * 0.06) * 0.22,
-      lerp(w0.p[1], w1.p[1], f) + Math.sin(t * 0.08) * 0.16,
-      lerp(w0.p[2], w1.p[2], f),
+      lerp(p0.x, p1.x, f) + Math.sin(t * 0.06) * 0.22,
+      lerp(p0.y, p1.y, f) + Math.sin(t * 0.08) * 0.16,
+      lerp(p0.z, p1.z, f),
     );
-    look.set(lerp(w0.l[0], w1.l[0], f), lerp(w0.l[1], w1.l[1], f), lerp(w0.l[2], w1.l[2], f));
+    look.set(lerp(l0.x, l1.x, f), lerp(l0.y, l1.y, f), lerp(l0.z, l1.z, f));
+    // 初回はスナップ（ロード時に原点からスウープしない）
+    if (!inited.current) {
+      inited.current = true;
+      camera.position.copy(target);
+      smoothLook.current.copy(look);
+      camera.lookAt(smoothLook.current);
+      return;
+    }
     // 位置・注視点とも追従lerp（スクロール平滑化と二段で滑らかさ＋僅かな遅延＝快適）
     const k = 1 - Math.exp(-9 * d);
     camera.position.lerp(target, k);
@@ -933,11 +1218,13 @@ function Rig() {
   return (
     <>
       <AdaptiveQuality />
+      <SceneWarmer warmed={warmed} />
       <SpaceEnv />
-      <fog attach="fog" args={["#0a0c1a", 18, 62]} />
-      <ambientLight intensity={0.045} />
-      <directionalLight position={[24, 8, 16]} intensity={3.6} color="#fff4e6" />
-      <directionalLight position={[-9, 1, -12]} intensity={0.4} color="#6f9cff" />
+      <fog attach="fog" args={["#070912", 130, 460]} />
+      <ambientLight intensity={0.08} />
+      {/* 太陽（原点）からの点光源。decay=0で距離減衰なし＝外惑星も照らす。各惑星は太陽方向に昼/夜の境界ができる */}
+      <pointLight position={[0, 0, 0]} intensity={2.6} color="#fff4e6" decay={0} />
+      <directionalLight position={[0, 6, 2]} intensity={0.18} color="#6f9cff" />
       <Nebula />
       <NebulaClouds />
       <DistantGalaxies />
@@ -954,11 +1241,8 @@ function Rig() {
         {showGalaxy && <KuiperBelt />}
       </Suspense>
       {showGalaxy && <Galaxy />}
-      <Suspense fallback={null}>
-        <Earth />
-      </Suspense>
-      <Planets />
-      <AmbientBodies />
+      <OrbitRings />
+      <SolarSystem />
       <Moons />
       {!MOBILE && (
         <EffectComposer>
@@ -994,9 +1278,17 @@ export default function CosmicStage() {
       webgl = false;
     }
     setEnabled(!reduce && webgl);
-    const onVis = () => setActive(!document.hidden);
+    // タブ非表示中＋惑星図鑑オープン中は背景3Dを停止（二重描画による高負荷を回避）
+    let viewerOpen = false;
+    const update = () => setActive(!document.hidden && !viewerOpen);
+    const onVis = () => update();
+    const onViewer = (e: Event) => { viewerOpen = !!(e as CustomEvent).detail?.open; update(); };
     document.addEventListener("visibilitychange", onVis);
-    return () => document.removeEventListener("visibilitychange", onVis);
+    window.addEventListener("cosmic:viewer", onViewer);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("cosmic:viewer", onViewer);
+    };
   }, []);
   if (!enabled) return null;
   return (
@@ -1005,7 +1297,7 @@ export default function CosmicStage() {
         aria-hidden="true"
         tabIndex={-1}
         style={{ position: "fixed", inset: 0 }}
-        dpr={MOBILE ? [1, 1] : [1, 1.5]}
+        dpr={MOBILE ? 1 : 1.5}
         frameloop={active ? "always" : "never"}
         camera={{ position: [0, 0.2, 3.6], fov: 50 }}
         gl={{ antialias: !MOBILE, alpha: false, stencil: false, powerPreference: "high-performance" }}
@@ -1014,4 +1306,36 @@ export default function CosmicStage() {
       </Canvas>
     </CanvasErrorBoundary>
   );
+}
+
+// 接近時のポップイン防止＝GLBを先読み（CosmicStage自体が遅延ロードのためLCP後に発火）
+// 3Dが実際に描画される時だけ先読みする。reduced-motion / WebGL非対応では CosmicStage は何も描画しない
+// ため、ここで6MB超のテクスチャ/GLBを取得すると LCP を無駄に悪化させる（＝先読みは3D有効時のみ）。
+const CAN_RENDER_3D =
+  typeof window !== "undefined" &&
+  !window.matchMedia("(prefers-reduced-motion: reduce)").matches &&
+  (() => {
+    try {
+      const c = document.createElement("canvas");
+      return !!(c.getContext("webgl2") || c.getContext("webgl"));
+    } catch {
+      return false;
+    }
+  })();
+
+if (CAN_RENDER_3D) {
+  // GLB（接近時のポップイン防止。CosmicStage自体が遅延ロードのためLCP後に発火）
+  useGLTF.preload(COMET_URL);
+  // 全惑星テクスチャ（アイドルウォームで確実にGPUへ載せ、スクロール接近時のアップロード由来のカクつきを消す）
+  for (const u of [
+    "/assets/planet/earth_day.webp", "/assets/planet/earth_normal.webp",
+    "/assets/planet/earth_clouds.webp", "/assets/planet/earth_lights.webp",
+    "/assets/planet/moon.webp", "/assets/planet/moon_n.webp",
+    "/assets/planet/mars.webp", "/assets/planet/mars_n.webp",
+    "/assets/planet/jupiter.webp", "/assets/planet/saturn.webp", "/assets/planet/saturn_ring.webp",
+    "/assets/planet/neptune.webp", "/assets/planet/mercury.webp", "/assets/planet/mercury_n.webp",
+    "/assets/planet/venus.webp", "/assets/planet/uranus.webp", "/assets/planet/sun.webp",
+  ]) {
+    useTexture.preload(u);
+  }
 }

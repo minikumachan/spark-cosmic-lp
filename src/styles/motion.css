@@ -4,16 +4,16 @@
    非対応・低モーション時はコンテンツを即表示（隠れない）。 */
 
 @media (prefers-reduced-motion: no-preference) {
+  /* opacity + transform のみ＝GPU合成で軽い。blur(filter)はスクロール連動で毎フレーム
+     高コストな描画パスになりカクつきの原因になるため使わない。 */
   @keyframes reveal-up {
     from {
       opacity: 0;
       transform: translateY(2rem);
-      filter: blur(6px);
     }
     to {
       opacity: 1;
       transform: translateY(0);
-      filter: blur(0);
     }
   }
 

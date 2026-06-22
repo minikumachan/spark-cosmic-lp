@@ -24,3 +24,6 @@ scripts/og/
 
 # 視覚確認用の使い捨てスクショスクリプト
 scripts/_shot.mjs
+scripts/_diag.mjs
+scripts/_fps.mjs
+scripts/_*.mjs
