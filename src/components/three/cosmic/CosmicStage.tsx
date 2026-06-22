@@ -1268,15 +1268,7 @@ class CanvasErrorBoundary extends Component<{ children: ReactNode }, { hasError:
 export default function CosmicStage() {
   const [enabled, setEnabled] = useState(false);
   const [active, setActive] = useState(true);
-  const [reduced, setReduced] = useState(false);
-  const [settled, setSettled] = useState(false); // reduced-motion: 初期描画後に静止
   useEffect(() => {
-    if (!reduced) return;
-    const t = window.setTimeout(() => setSettled(true), 2200); // 2.2秒だけ描画してテクスチャ反映→静止
-    return () => window.clearTimeout(t);
-  }, [reduced]);
-  useEffect(() => {
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let webgl = false;
     try {
       const c = document.createElement("canvas");
@@ -1284,10 +1276,11 @@ export default function CosmicStage() {
     } catch {
       webgl = false;
     }
-    // WebGLがあれば常に背景3Dを表示。reduced-motion時は連続アニメを止めた静止表示にする
-    // （以前は reduce で完全非表示にしていたため「背景が映らない」状態になっていた）。
+    // WebGLがあれば常に背景3Dを表示・アニメーションさせる。OSの「モーション軽減/アニメ効果オフ」
+    // でも装飾的な宇宙背景は止めない（＝惑星図鑑と同じ挙動。以前は reduced-motion で
+    // 非表示や静止にしていたため「映らない」「一瞬で消える」「すぐ固まる」と報告された）。
+    // DOMコンテンツの入場アニメ側は別途 CSS で prefers-reduced-motion を尊重している。
     setEnabled(webgl);
-    setReduced(reduce);
     // タブ非表示中＋惑星図鑑オープン中は背景3Dを停止（二重描画による高負荷を回避）
     let viewerOpen = false;
     const update = () => setActive(!document.hidden && !viewerOpen);
@@ -1308,17 +1301,9 @@ export default function CosmicStage() {
         tabIndex={-1}
         style={{ position: "fixed", inset: 0 }}
         dpr={MOBILE ? 1 : 1.5}
-        frameloop={reduced ? (settled ? "demand" : "always") : active ? "always" : "never"}
+        frameloop={active ? "always" : "never"}
         camera={{ position: [0, 0.2, 3.6], fov: 50 }}
-        gl={{
-          antialias: !MOBILE,
-          alpha: false,
-          stencil: false,
-          powerPreference: "high-performance",
-          // reduced-motion: 描画停止(frameloop:never)後にブラウザがバッファをクリアして
-          // 背景が消えるのを防ぎ、最終フレームを保持する（一瞬映って消える不具合の対策）。
-          preserveDrawingBuffer: reduced,
-        }}
+        gl={{ antialias: !MOBILE, alpha: false, stencil: false, powerPreference: "high-performance" }}
       >
         <Rig />
       </Canvas>
@@ -1327,11 +1312,11 @@ export default function CosmicStage() {
 }
 
 // 接近時のポップイン防止＝GLBを先読み（CosmicStage自体が遅延ロードのためLCP後に発火）
-// 3Dが実際に描画される時だけ先読みする。reduced-motion / WebGL非対応では CosmicStage は何も描画しない
-// ため、ここで6MB超のテクスチャ/GLBを取得すると LCP を無駄に悪化させる（＝先読みは3D有効時のみ）。
+// 3Dが実際に描画される時だけ先読みする。WebGL非対応では CosmicStage は何も描画しないため、
+// ここで6MB超のテクスチャ/GLBを取得すると LCP を無駄に悪化させる（＝先読みは3D有効時のみ）。
+// reduced-motion でも背景3Dは描画するので、ここでも reduced-motion を除外しない。
 const CAN_RENDER_3D =
   typeof window !== "undefined" &&
-  !window.matchMedia("(prefers-reduced-motion: reduce)").matches &&
   (() => {
     try {
       const c = document.createElement("canvas");
