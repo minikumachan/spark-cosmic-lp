@@ -84,3 +84,35 @@ test("axe a11y 違反0（dark・reduced-motion）", async ({ page }) => {
 
   await page.screenshot({ path: "tests/__screenshots__/cosmic-home.png", fullPage: true });
 });
+
+// ── スクロール段階遷移（step モード）。?scroll=step で reduced-motion でも強制。
+//    reduced-motion 下では遷移は即時（カメラ飛行アニメは headed で別途確認）だが、
+//    API・ドット・キー/postMessage の遷移ロジックを決定的に検証する。 ──
+test("step モード: API・進行ドット・キー/postMessage で段階遷移する", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/?scroll=step");
+  // step で初期化（?scroll=step は reduced-motion を上書き）
+  await expect.poll(() => page.evaluate(() => (window as unknown as { sparkDeck?: { mode?: string } }).sparkDeck?.mode)).toBe("step");
+  expect(await page.evaluate(() => (window as unknown as { sparkDeck: { stageCount: number } }).sparkDeck.stageCount)).toBe(7);
+  // 進行ドット 7 個（desktop 既定ビューポート）
+  await expect(page.locator(".deck-dots .deck-dot")).toHaveCount(7);
+  // 初期は最上部
+  expect(await page.evaluate(() => window.scrollY)).toBeLessThan(5);
+  // ArrowDown で前進
+  await page.keyboard.press("ArrowDown");
+  await expect.poll(() => page.evaluate(() => window.scrollY), { timeout: 4000 }).toBeGreaterThan(50);
+  // postMessage（プレゼン埋め込み同期の経路）で最終ステージへ
+  await page.evaluate(() => window.postMessage({ type: "spark:goto", stage: 6 }, "*"));
+  await expect
+    .poll(
+      () => page.evaluate(() => (window as unknown as { sparkDeck: { getState: () => { stage: number } } }).sparkDeck.getState().stage),
+      { timeout: 6000 },
+    )
+    .toBe(6);
+});
+
+test("通常スクロールが既定（mode=free・進行ドット無し）", async ({ page }) => {
+  await page.goto("/");
+  await expect.poll(() => page.evaluate(() => (window as unknown as { sparkDeck?: { mode?: string } }).sparkDeck?.mode)).toBe("free");
+  await expect(page.locator(".deck-dots")).toHaveCount(0);
+});

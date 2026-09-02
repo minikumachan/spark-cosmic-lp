@@ -816,6 +816,50 @@ const ACC: Record<string, string> = {
         flex-wrap: wrap;
         gap: 1rem;
       }
+
+      /* ── Deck（スクロール段階遷移）。?scroll=free で無効化＝従来の自由スクロール。
+         reduced-motion でも自動で free に退避するため、ドット等の付加 DOM は step 時のみ生成され
+         品質計測（reduced-motion）には一切現れない。 ── */
+      html.scroll-step {
+        scroll-behavior: auto;
+      }
+      .deck-dots {
+        position: fixed;
+        right: clamp(0.85rem, 2.2vw, 1.7rem);
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 40;
+        display: flex;
+        flex-direction: column;
+        gap: 0.9rem;
+        align-items: center;
+      }
+      .deck-dot {
+        width: 9px;
+        height: 9px;
+        padding: 0;
+        border: 0;
+        border-radius: 50%;
+        background: rgba(160, 175, 255, 0.3);
+        cursor: pointer;
+        transition:
+          background 0.3s,
+          box-shadow 0.3s,
+          transform 0.3s;
+      }
+      .deck-dot:hover {
+        background: rgba(160, 175, 255, 0.62);
+      }
+      .deck-dot[aria-current="true"] {
+        background: #9db4ff;
+        box-shadow: 0 0 11px rgba(127, 178, 255, 0.95);
+        transform: scale(1.55);
+      }
+      @media (max-width: 760px) {
+        .deck-dots {
+          display: none;
+        }
+      }
     </style>
   </head>
   <body>
@@ -1127,6 +1171,350 @@ const ACC: Record<string, string> = {
           }
         });
       }
+    </script>
+
+    <script>
+      // ── Deck Controller: スクロールで段階遷移（制御ステップ）。
+      //    ?scroll=free で従来の自由スクロールへ即復帰（既存コードは温存）。デフォルトは step。
+      //    reduced-motion は自動で free に退避（=e2e/Lighthouse は従来挙動のまま測定され a11y/CLS/perf を守る）。
+      //    入力（wheel/touch/key）と postMessage を goToStage に集約＝プレゼン埋め込み同期の土台。
+      (() => {
+        const params = new URLSearchParams(location.search);
+        const modeParam = params.get("scroll");
+        const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        // 既定は通常スクロール（free）。プレゼン埋め込み/デモ時のみ ?scroll=step で制御ステップ遷移を有効化。
+        const mode: "free" | "step" = modeParam === "step" ? "step" : "free";
+
+        const STAGE_SEL = ["header.hero", "#services", "#works", "#strengths", "#pricing", "#faq", "#contact"];
+        const STAGE_KEYS = ["earth", "mars", "jupiter", "saturn", "uranus", "neptune", "galaxy"];
+        const STAGE_LABELS = ["ホーム", "サービス", "制作実績", "強み", "料金", "FAQ", "お問い合わせ"];
+        const stageEls = STAGE_SEL
+          .map((s) => document.querySelector(s) as HTMLElement | null)
+          .filter((el): el is HTMLElement => !!el);
+        if (stageEls.length === 0) return;
+
+        const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
+
+        let currentStage = -1;
+        let dotEls: HTMLButtonElement[] = [];
+        const updateDots = (i: number) => {
+          for (let k = 0; k < dotEls.length; k++) dotEls[k].setAttribute("aria-current", k === i ? "true" : "false");
+        };
+        const notifyStage = (i: number) => {
+          if (i < 0 || i === currentStage) return;
+          currentStage = i;
+          updateDots(i);
+          if (window.parent && window.parent !== window) {
+            try {
+              window.parent.postMessage(
+                { type: "spark:stage", index: i, key: STAGE_KEYS[i], stageCount: stageEls.length },
+                "*",
+              );
+            } catch {}
+          }
+        };
+
+        // プレゼン（埋め込み親）からの postMessage を受けて遷移。動かすだけの無害メッセージのみ受理。
+        const installBridge = (api: { goToStage: (n: number) => void; next: () => void; prev: () => void }) => {
+          window.addEventListener("message", (e: MessageEvent) => {
+            const m = e.data as { type?: string; stage?: number } | null;
+            if (!m || typeof m !== "object") return;
+            if (m.type === "spark:goto" && typeof m.stage === "number") api.goToStage(m.stage);
+            else if (m.type === "spark:next") api.next();
+            else if (m.type === "spark:prev") api.prev();
+            else if (m.type === "spark:state") {
+              const src = e.source as WindowProxy | null;
+              if (src) {
+                try {
+                  src.postMessage(
+                    { type: "spark:stage", index: currentStage, key: STAGE_KEYS[currentStage], stageCount: stageEls.length },
+                    "*",
+                  );
+                } catch {}
+              }
+            }
+          });
+        };
+
+        // ── free モード（従来＝自由スクロール）。視覚 DOM は足さず、stage 検知＋API＋bridge のみ ──
+        if (mode === "free") {
+          const pickByScroll = () => {
+            const midY = window.scrollY + window.innerHeight / 2;
+            let bi = 0;
+            let bd = Infinity;
+            stageEls.forEach((el, i) => {
+              const c = el.getBoundingClientRect().top + window.scrollY + el.offsetHeight / 2;
+              const d = Math.abs(c - midY);
+              if (d < bd) {
+                bd = d;
+                bi = i;
+              }
+            });
+            notifyStage(bi);
+          };
+          window.addEventListener("scroll", pickByScroll, { passive: true });
+          pickByScroll();
+          const goToStage = (si: number) => {
+            stageEls[clamp(si, 0, stageEls.length - 1)].scrollIntoView({
+              behavior: reduce ? "auto" : "smooth",
+              block: "start",
+            });
+          };
+          const api = { goToStage, next: () => goToStage(currentStage + 1), prev: () => goToStage(currentStage - 1) };
+          (window as unknown as { sparkDeck: unknown }).sparkDeck = {
+            ...api,
+            mode,
+            stageCount: stageEls.length,
+            getState: () => ({ stage: currentStage, key: STAGE_KEYS[currentStage], mode }),
+          };
+          installBridge(api);
+          return;
+        }
+
+        // ── step モード（制御ステップ遷移） ──
+        document.documentElement.classList.add("scroll-step");
+
+        let paused = false; // 惑星図鑑モーダル等が開いている間はネイティブ操作に委ねる
+        window.addEventListener("cosmic:viewer", (e) => {
+          const d = (e as CustomEvent).detail as { open?: boolean } | undefined;
+          paused = !!(d && d.open);
+        });
+
+        // 停止点（高い節はビューポート単位でページめくり＝内容を隠さない）。カメラは scrollY 連動なので無改修。
+        let stops: number[] = [];
+        let stopStage: number[] = [];
+        const computeStops = () => {
+          const vh = window.innerHeight;
+          const maxY = Math.max(0, document.documentElement.scrollHeight - vh);
+          const raw: { y: number; si: number }[] = [];
+          stageEls.forEach((el, si) => {
+            const top = el.getBoundingClientRect().top + window.scrollY;
+            const h = el.offsetHeight;
+            if (h <= vh * 1.04) {
+              raw.push({ y: clamp(top, 0, maxY), si });
+            } else {
+              const pages = Math.ceil(h / vh);
+              const bottom = Math.min(top + h - vh, maxY);
+              for (let k = 0; k < pages; k++) raw.push({ y: clamp(top + k * vh, 0, bottom), si });
+            }
+          });
+          raw.sort((a, b) => a.y - b.y);
+          stops = [];
+          stopStage = [];
+          for (const o of raw) {
+            if (stops.length && Math.abs(o.y - stops[stops.length - 1]) < 8) continue;
+            stops.push(o.y);
+            stopStage.push(o.si);
+          }
+        };
+        const nearest = (y: number) => {
+          let bi = 0;
+          let bd = Infinity;
+          for (let i = 0; i < stops.length; i++) {
+            const d = Math.abs(stops[i] - y);
+            if (d < bd) {
+              bd = d;
+              bi = i;
+            }
+          }
+          return bi;
+        };
+
+        let idx = 0;
+        let tweening = false;
+        let raf = 0;
+        let lockUntil = 0;
+        const easeInOut = (p: number) => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
+        const tweenTo = (y: number) => {
+          cancelAnimationFrame(raf);
+          const startY = window.scrollY;
+          const dist = y - startY;
+          if (Math.abs(dist) < 1) return;
+          if (reduce) {
+            window.scrollTo(0, y);
+            return;
+          }
+          const dur = clamp(Math.abs(dist) * 0.45, 700, 1300); // 距離に応じた制御 duration（惑星飛行を見せきる）
+          const t0 = performance.now();
+          tweening = true;
+          const tick = (now: number) => {
+            const p = Math.min(1, (now - t0) / dur);
+            window.scrollTo(0, startY + dist * easeInOut(p));
+            if (p < 1) raf = requestAnimationFrame(tick);
+            else {
+              tweening = false;
+              lockUntil = performance.now() + 120;
+            }
+          };
+          raf = requestAnimationFrame(tick);
+        };
+        const locked = () => tweening || performance.now() < lockUntil || paused;
+        const go = (toIdx: number) => {
+          idx = clamp(Math.round(toIdx), 0, stops.length - 1);
+          notifyStage(stopStage[idx]);
+          tweenTo(stops[idx]);
+        };
+        const stageToStop = (si: number) => {
+          const i = stopStage.indexOf(si);
+          return i < 0 ? idx : i;
+        };
+        const goToStage = (si: number) => go(stageToStop(clamp(si, 0, stageEls.length - 1)));
+        const step = (dir: number) => {
+          if (locked()) return;
+          const ni = clamp(idx + dir, 0, stops.length - 1);
+          if (ni !== idx) go(ni);
+        };
+
+        let wheelAcc = 0;
+        const onWheel = (e: WheelEvent) => {
+          if (paused) return;
+          e.preventDefault();
+          if (locked()) {
+            wheelAcc = 0;
+            return;
+          }
+          wheelAcc += e.deltaY;
+          if (Math.abs(wheelAcc) > 24) {
+            const d = Math.sign(wheelAcc);
+            wheelAcc = 0;
+            step(d);
+          }
+        };
+        let touchY: number | null = null;
+        const onTouchStart = (e: TouchEvent) => {
+          touchY = e.touches[0]?.clientY ?? null;
+        };
+        const onTouchMove = (e: TouchEvent) => {
+          if (paused) return;
+          e.preventDefault();
+          if (touchY == null || locked()) return;
+          const dy = touchY - (e.touches[0]?.clientY ?? touchY);
+          if (Math.abs(dy) > 40) {
+            touchY = null;
+            step(dy > 0 ? 1 : -1);
+          }
+        };
+        const onTouchEnd = () => {
+          touchY = null;
+        };
+        const isTyping = (t: EventTarget | null) => {
+          const el = t as HTMLElement | null;
+          return !!el && (/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName) || el.isContentEditable);
+        };
+        const isInteractive = (t: EventTarget | null) => {
+          const el = t as HTMLElement | null;
+          return (
+            !!el &&
+            (/^(BUTTON|A|SUMMARY|INPUT|TEXTAREA|SELECT|LABEL)$/.test(el.tagName) || el.isContentEditable || el.tabIndex >= 0)
+          );
+        };
+        const onKey = (e: KeyboardEvent) => {
+          if (paused || isTyping(e.target)) return;
+          let dir = 0;
+          let jump = -1;
+          switch (e.key) {
+            case "ArrowDown":
+            case "PageDown":
+              dir = 1;
+              break;
+            case "ArrowUp":
+            case "PageUp":
+              dir = -1;
+              break;
+            case " ":
+              if (isInteractive(e.target)) return; // ボタン等のスペース起動を奪わない
+              dir = e.shiftKey ? -1 : 1;
+              break;
+            case "Home":
+              jump = 0;
+              break;
+            case "End":
+              jump = stops.length - 1;
+              break;
+            default:
+              return;
+          }
+          e.preventDefault();
+          if (jump >= 0) go(jump);
+          else step(dir);
+        };
+
+        // CTA/アンカークリックは該当 stage へルーティング
+        const SEL_TO_STAGE: Record<string, number> = {
+          "#services": 1,
+          "#works": 2,
+          "#strengths": 3,
+          "#pricing": 4,
+          "#faq": 5,
+          "#contact": 6,
+        };
+        document.querySelectorAll<HTMLAnchorElement>('a[href^="#"]').forEach((a) => {
+          a.addEventListener("click", (e) => {
+            const si = SEL_TO_STAGE[a.getAttribute("href") || ""];
+            if (si != null) {
+              e.preventDefault();
+              goToStage(si);
+            }
+          });
+        });
+
+        // 外部要因（アンカー既定/ページ内検索等）でスクロールした時も idx を同期
+        let syncRaf = 0;
+        window.addEventListener(
+          "scroll",
+          () => {
+            if (tweening) return;
+            cancelAnimationFrame(syncRaf);
+            syncRaf = requestAnimationFrame(() => {
+              idx = nearest(window.scrollY);
+              notifyStage(stopStage[idx]);
+            });
+          },
+          { passive: true },
+        );
+
+        const remeasure = () => {
+          computeStops();
+          idx = nearest(window.scrollY);
+        };
+        computeStops();
+        idx = nearest(window.scrollY);
+        notifyStage(stopStage[idx] ?? 0);
+        window.addEventListener("wheel", onWheel, { passive: false });
+        window.addEventListener("touchstart", onTouchStart, { passive: true });
+        window.addEventListener("touchmove", onTouchMove, { passive: false });
+        window.addEventListener("touchend", onTouchEnd, { passive: true });
+        window.addEventListener("keydown", onKey);
+        window.addEventListener("resize", remeasure);
+        window.addEventListener("load", remeasure);
+        document.addEventListener("toggle", remeasure, true); // FAQ 開閉で高さが変わるため再計測
+        window.setTimeout(remeasure, 800); // フォント確定後
+
+        // 進行ドット（step モードのみ・desktop。free では生成しない＝品質計測に無影響）
+        const nav = document.createElement("nav");
+        nav.className = "deck-dots";
+        nav.setAttribute("aria-label", "セクションナビゲーション");
+        stageEls.forEach((_, i) => {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "deck-dot";
+          b.setAttribute("aria-label", STAGE_LABELS[i]);
+          b.addEventListener("click", () => goToStage(i));
+          nav.appendChild(b);
+        });
+        document.body.appendChild(nav);
+        dotEls = Array.from(nav.querySelectorAll("button"));
+        updateDots(stopStage[idx] ?? 0);
+
+        const api = { goToStage, next: () => step(1), prev: () => step(-1) };
+        (window as unknown as { sparkDeck: unknown }).sparkDeck = {
+          ...api,
+          mode,
+          stageCount: stageEls.length,
+          getState: () => ({ stage: currentStage, key: STAGE_KEYS[currentStage], stops: stops.length, mode }),
+        };
+        installBridge(api);
+      })();
     </script>
   </body>
 </html>
