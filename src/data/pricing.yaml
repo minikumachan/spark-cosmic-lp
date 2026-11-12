@@ -1,8 +1,10 @@
+# price は税別の円（数字だけ）。頁では税込（10%）を大きく、税別を小さく出す。
+# 要相談のプランは price を書かず、note に一言を書く。
 - id: light
   name: ライト
   en: Light
-  price: ¥300,000
-  period: 〜 / プロジェクト
+  price: 300000
+  period: 1件あたり
   featured: false
   features:
     - LP 1ページ制作
@@ -13,21 +15,21 @@
 - id: standard
   name: スタンダード
   en: Standard
-  price: ¥800,000
-  period: 〜 / プロジェクト
+  price: 800000
+  period: 1件あたり
   featured: true
   features:
     - 複数ページのサイト制作
     - ブランド設計・トンマナ策定
     - UI/UXデザイン
     - 実装・公開・初期SEO
-    - 公開後1ヶ月の保守
+    - 公開後1か月の保守
 
 - id: growth
   name: グロース
   en: Growth
-  price: 要相談
-  period: パートナー契約
+  period: 継続のパートナー契約
+  note: 内容に合わせてお見積りします
   featured: false
   features:
     - フルブランディング

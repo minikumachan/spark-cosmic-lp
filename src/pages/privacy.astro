@@ -1,0 +1,232 @@
+---
+// 個人情報の取り扱い（問い合わせフォームの「送信すると、個人情報の取り扱いに同意したものとみなします」から来る頁）。
+// 本編と同じ暗い見た目にする。スクリプトは置かない（CSP のハッシュも要らない）。
+import "../styles/fonts.css";
+import { site } from "../lib/content";
+import { buildMeta } from "../lib/seo";
+
+const meta = buildMeta({
+  title: "個人情報の取り扱い",
+  description: "spark の問い合わせフォームで受け取る情報と、その使い方をまとめています。",
+  canonical: "https://spark-lp.pages.dev/privacy/",
+});
+---
+
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{meta.title}</title>
+    <meta name="description" content={meta.description} />
+    <link rel="canonical" href={meta.canonical} />
+    <meta name="theme-color" content="#05060d" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="spark" />
+    <meta property="og:locale" content="ja_JP" />
+    <meta property="og:title" content={meta.title} />
+    <meta property="og:description" content={meta.description} />
+    <meta property="og:url" content={meta.canonical} />
+    <meta property="og:image" content={meta.image} />
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        min-height: 100vh;
+        background: #05060d;
+        color: #e6e9fb;
+        font-family: "Zen Kaku Gothic New", "Zen Kaku JP fallback", system-ui, sans-serif;
+        line-height: 1.9;
+      }
+      .skip-link {
+        position: absolute;
+        left: 1rem;
+        top: -4rem;
+        z-index: 10;
+        padding: 0.6rem 1rem;
+        background: #2a64f6;
+        color: #fff;
+        border-radius: 8px;
+        text-decoration: none;
+      }
+      .skip-link:focus {
+        top: 1rem;
+      }
+      .wrap {
+        width: 100%;
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 0 clamp(1.25rem, 5vw, 2.5rem);
+      }
+      header {
+        border-bottom: 1px solid rgba(160, 175, 255, 0.14);
+      }
+      .bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        min-height: 64px;
+      }
+      .brand {
+        font-weight: 700;
+        font-size: 1.15rem;
+        letter-spacing: 0.04em;
+        color: #fff;
+        text-decoration: none;
+      }
+      .back {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        min-height: 32px;
+        font-size: 0.86rem;
+        color: #9fc2ff;
+        text-decoration: none;
+      }
+      .back:hover,
+      .brand:hover {
+        color: #fff;
+      }
+      a:focus-visible {
+        outline: 2px solid #7fb2ff;
+        outline-offset: 3px;
+        border-radius: 4px;
+      }
+      main {
+        padding: 3.5rem 0 4rem;
+      }
+      h1 {
+        font-size: clamp(1.7rem, 4vw, 2.3rem);
+        line-height: 1.4;
+        letter-spacing: 0.02em;
+        text-wrap: balance;
+      }
+      .lead {
+        margin-top: 1.2rem;
+        color: #c2c9ec;
+      }
+      section {
+        margin-top: 2.6rem;
+      }
+      h2 {
+        font-size: 1.15rem;
+        line-height: 1.5;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid rgba(160, 175, 255, 0.16);
+      }
+      section p,
+      section ul {
+        margin-top: 0.9rem;
+        color: #c2c9ec;
+      }
+      section ul {
+        padding-left: 1.3em;
+      }
+      section li + li {
+        margin-top: 0.2rem;
+      }
+      main a:not(.back) {
+        color: #9fc2ff;
+        text-underline-offset: 3px;
+      }
+      main a:not(.back):hover {
+        color: #fff;
+      }
+      .date {
+        margin-top: 3rem;
+        font-size: 0.86rem;
+        color: #9aa1cb;
+      }
+      footer {
+        border-top: 1px solid rgba(160, 175, 255, 0.14);
+        padding: 2rem 0 3rem;
+        font-size: 0.76rem;
+        color: #9aa1cb;
+      }
+      footer p + p {
+        margin-top: 0.6rem;
+      }
+    </style>
+  </head>
+  <body>
+    <a href="#main" class="skip-link">本文へスキップ</a>
+    <header>
+      <div class="wrap bar">
+        <a class="brand" href="/">{site.brand}</a>
+        <a class="back" href="/"><span aria-hidden="true">←</span>トップページへ戻る</a>
+      </div>
+    </header>
+
+    <main id="main">
+      <div class="wrap">
+        <h1>個人情報の取り扱い</h1>
+        <p class="lead">
+          spark の問い合わせフォームで受け取る情報と、その使い方をまとめています。このサイトは授業の課題で作った見本のため、メールの送信を設定していない間は、送信した内容はメールで届かず、保存もされません。
+        </p>
+
+        <section aria-labelledby="h-info">
+          <h2 id="h-info">受け取る情報</h2>
+          <p>問い合わせフォームから送信すると、次の情報を受け取ります。</p>
+          <ul>
+            <li>お名前</li>
+            <li>メールアドレス</li>
+            <li>ご希望のプラン・ご予算・ご希望の時期（選んだ場合だけ）</li>
+            <li>ご相談内容</li>
+          </ul>
+        </section>
+
+        <section aria-labelledby="h-use">
+          <h2 id="h-use">使う目的</h2>
+          <p>受け取った情報は、そのご相談への返信にだけ使います。広告やメールマガジンの配信には使いません。</p>
+        </section>
+
+        <section aria-labelledby="h-svc">
+          <h2 id="h-svc">外部のサービス</h2>
+          <p>
+            このサイトは Cloudflare Pages（Cloudflare, Inc.、アメリカ合衆国）で公開しています。フォームの内容をメールで受け取る時は、メールの送信サービス Resend（Resend, Inc.、アメリカ合衆国）を使います。
+          </p>
+          <p>同じ所から短い間に何度も送信されるのを防ぐため、送信した端末の IP アドレスを1分間だけ記録することがあります。</p>
+        </section>
+
+        <section aria-labelledby="h-third">
+          <h2 id="h-third">第三者への提供</h2>
+          <p>法令にもとづく場合を除いて、受け取った情報をご本人の同意なく第三者に渡すことはありません。</p>
+        </section>
+
+        <section aria-labelledby="h-keep">
+          <h2 id="h-keep">保存する期間</h2>
+          <p>ご相談のやり取りが終わり、必要がなくなった時点で削除します。</p>
+        </section>
+
+        <section aria-labelledby="h-browser">
+          <h2 id="h-browser">ブラウザに保存する情報</h2>
+          <p>
+            最初に出る操作の案内をもう一度出さないために、案内を見終わったことだけをブラウザ（localStorage）に保存します。アクセス解析や広告のための Cookie は使っていません。
+          </p>
+        </section>
+
+        <section aria-labelledby="h-ask">
+          <h2 id="h-ask">お問い合わせ</h2>
+          <p>この取り扱いについての質問は、トップページの<a href="/#contact">お問い合わせ</a>から送ってください。</p>
+        </section>
+
+        <p class="date">2026年11月12日 制定</p>
+      </div>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <p>{site.notice.site}</p>
+        <p>{site.footer.copyright}</p>
+      </div>
+    </footer>
+  </body>
+</html>

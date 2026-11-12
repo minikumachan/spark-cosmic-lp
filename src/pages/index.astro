@@ -14,10 +14,11 @@ import strengthsYaml from "../data/strengths.yaml?raw";
 import worksYaml from "../data/works.yaml?raw";
 import pricingYaml from "../data/pricing.yaml?raw";
 import faqYaml from "../data/faq.yaml?raw";
+import { BUDGET_OPTIONS, PLAN_OPTIONS, TIMING_OPTIONS } from "../lib/contact-fields";
 const meta = buildMeta({
   title: "ブランドも、体験も、次のステージへ",
   description:
-    "spark は、ブランド戦略からデザイン・開発までを一気通貫で手がけるクリエイティブスタジオ。太陽系を旅するインタラクティブな宇宙体験で、あなたのブランドを次のステージへ。",
+    "spark は、ブランド戦略からデザイン・開発までを一貫して手がけるクリエイティブスタジオです。太陽系を旅する宇宙の 3D 体験で、あなたのブランドを次のステージへ。",
 });
 const { hero, contact } = site;
 const services = inFileOrder(await getCollection("services"), servicesYaml, "services");
@@ -30,6 +31,39 @@ const pricing = inFileOrder(await getCollection("pricing"), pricingYaml, "pricin
 const pcopy = site.sections.pricing;
 const faq = inFileOrder(await getCollection("faq"), faqYaml, "faq");
 const fcopy = site.sections.faq;
+
+// 料金: データは税別。大きく出すのは税込（消費税 10%）、税別は下に小さく（2026-11-12 まぼさんの選択）
+const taxIn = (n: number) => Math.round((n * 110) / 100);
+const yen = (n: number) => `¥${n.toLocaleString("ja-JP")}`;
+
+// フォームの「ご希望のプラン」と料金表のプランは同じ物を指す。名前がずれたら組み立てで止める
+{
+  const fromForm = PLAN_OPTIONS.filter((o) => o.value !== "undecided").map((o) => `${o.value}:${o.label}`);
+  const fromPricing = pricing.map((p) => `${p.id}:${p.data.name}プラン`);
+  if (fromForm.join(",") !== fromPricing.join(","))
+    throw new Error(`フォームのプランと料金表のプランがずれています: ${fromForm.join(",")} ／ ${fromPricing.join(",")}`);
+}
+
+// 問い合わせの選ぶ欄（どれも任意）
+const CHOICES = [
+  { id: "cf-plan", name: "plan", label: contact.fields.plan.label, opts: PLAN_OPTIONS },
+  { id: "cf-budget", name: "budget", label: contact.fields.budget.label, opts: BUDGET_OPTIONS },
+  { id: "cf-timing", name: "timing", label: contact.fields.timing.label, opts: TIMING_OPTIONS },
+] as const;
+
+// 制作実績の絞り込み: 分野と件数（最初に出てきた順）
+const tagCount = new Map<string, number>();
+for (const w of works) for (const t of w.data.tags) tagCount.set(t, (tagCount.get(t) ?? 0) + 1);
+const workTags = [...tagCount];
+// 「詳しく見る」の中の並び（課題 → 取り組み → 成果 → 期間・担当範囲・体制）
+const DETAIL_LABELS = [
+  ["problem", "課題"],
+  ["did", "取り組み"],
+  ["result", "成果"],
+  ["period", "期間"],
+  ["scope", "担当範囲"],
+  ["team", "体制"],
+] as const;
 
 // FAQPage 構造化データ（リッチリザルト）
 const faqJsonLd = {
@@ -94,7 +128,7 @@ const ACC: Record<string, string> = {
         overflow-x: clip;
         /* キーボードで移った先が上の航路・左下の時間の操作の下に隠れないように（WCAG 2.4.11） */
         scroll-padding-top: 72px;
-        scroll-padding-bottom: 9.5rem;
+        scroll-padding-bottom: 13rem;
       }
       @media (prefers-reduced-motion: reduce) {
         html {
@@ -162,6 +196,14 @@ const ACC: Record<string, string> = {
         flex-direction: column;
         gap: 0.6rem;
         align-items: flex-end;
+        /* スマホで左下の時間の操作を開いて横に重なる時だけ、時間の操作の台本が --td-lift を入れて上へ逃がす */
+        translate: 0 calc(-1 * var(--td-lift, 0px));
+        transition: translate 0.25s ease;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .fab-group {
+          transition: none;
+        }
       }
       #audio-toggle[aria-pressed="true"] {
         border-color: rgba(127, 178, 255, 0.7);
@@ -327,6 +369,29 @@ const ACC: Record<string, string> = {
         color: #8b93c4;
         margin-top: 0.4rem;
       }
+      /* 見本の数字に付ける「※」と、その注記 */
+      .ast {
+        font-size: 0.42em;
+        vertical-align: super;
+        margin-left: 0.15em;
+        font-weight: 700;
+      }
+      .snote {
+        margin-top: 1.1rem;
+        max-width: 36em;
+        font-size: 0.74rem;
+        line-height: 1.7;
+        color: #9aa1cb;
+      }
+      /* 読み上げにだけ出す文字 */
+      .vh {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
       .scrollhint {
         position: absolute;
         bottom: 2.2rem;
@@ -490,17 +555,52 @@ const ACC: Record<string, string> = {
       button:focus-visible,
       summary:focus-visible,
       input:focus-visible,
-      textarea:focus-visible {
+      select:focus-visible,
+      textarea:focus-visible,
+      .cform-sum:focus-visible,
+      .cform-done:focus-visible {
         outline: 2px solid #7fb2ff;
         outline-offset: 3px;
         border-radius: 4px;
       }
 
       /* ── works（罫線リスト・天体ドット） ── */
+      .wfilter {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 1.6rem;
+      }
+      .wchip {
+        min-height: 36px;
+        padding: 0 1rem;
+        background: rgba(10, 14, 30, 0.55);
+        border: 1px solid rgba(160, 175, 255, 0.28);
+        border-radius: 999px;
+        color: #c2c9ec;
+        font-family: inherit;
+        font-size: 0.8rem;
+        cursor: pointer;
+      }
+      .wchip:hover {
+        border-color: rgba(157, 180, 255, 0.7);
+        color: #fff;
+      }
+      .wchip[aria-pressed="true"] {
+        background: #2a64f6;
+        border-color: #2a64f6;
+        color: #fff;
+      }
       .works {
         border-top: 1px solid rgba(160, 175, 255, 0.1);
       }
-      .works li {
+      .works > li[hidden] {
+        display: none;
+      }
+      .works > li:has(details[open]) {
+        align-items: start;
+      }
+      .works > li {
         display: grid;
         grid-template-columns: 1rem 1fr auto;
         gap: 1.5rem;
@@ -512,9 +612,70 @@ const ACC: Record<string, string> = {
           background 0.3s,
           padding-left 0.3s;
       }
-      .works li:hover {
+      .works > li:hover {
         background: rgba(127, 178, 255, 0.04);
         padding-left: 0.8rem;
+      }
+      /* 「詳しく見る」（課題・取り組み・成果…を下に開く） */
+      .wmore {
+        margin-top: 0.8rem;
+      }
+      .wmore summary {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        min-height: 32px;
+        list-style: none;
+        cursor: pointer;
+        font-size: 0.82rem;
+        color: #9fc2ff;
+      }
+      .wmore summary::-webkit-details-marker {
+        display: none;
+      }
+      .wmore summary:hover {
+        color: #fff;
+      }
+      .wchev {
+        width: 0.5rem;
+        height: 0.5rem;
+        border-right: 1.6px solid currentColor;
+        border-bottom: 1.6px solid currentColor;
+        transform: translateY(-2px) rotate(45deg);
+        transition: transform 0.2s;
+      }
+      .wmore[open] .wchev {
+        transform: translateY(2px) rotate(-135deg);
+      }
+      .wdl {
+        display: grid;
+        gap: 0.7rem;
+        margin-top: 0.8rem;
+        max-width: 34em;
+        font-size: 0.84rem;
+        line-height: 1.75;
+      }
+      .wdl > div {
+        display: grid;
+        grid-template-columns: 5.5em 1fr;
+        gap: 0.8rem;
+      }
+      .wdl dt {
+        color: #9aa1cb;
+      }
+      .wdl dd {
+        color: #d4daf5;
+        min-width: 0;
+      }
+      .wfic {
+        margin-top: 0.8rem;
+        font-size: 0.74rem;
+        color: #9aa1cb;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .wchev {
+          transition: none;
+        }
       }
       .wdot {
         width: 0.7rem;
@@ -605,12 +766,24 @@ const ACC: Record<string, string> = {
         white-space: nowrap;
       }
       .pper {
-        display: block;
-        font-size: 0.5em;
+        font-size: 0.4em;
+        color: #c2c9ec;
+        margin-left: 0.2em;
+        font-weight: 500;
+        letter-spacing: 0;
+      }
+      .ptax {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        margin-top: 0.5rem;
+        font-size: 0.8rem;
         color: #9aa1cb;
-        margin-top: 0.3rem;
-        font-weight: 400;
-        white-space: normal;
+      }
+      .pnote {
+        margin-top: 1.2rem;
+        font-size: 0.8rem;
+        color: #9aa1cb;
       }
       .pfeat {
         list-style: none;
@@ -738,6 +911,126 @@ const ACC: Record<string, string> = {
         color: #c2c9ec;
         font-weight: 500;
       }
+      /* 必須・任意は両方に書く（デジタル庁のデザインシステムの形） */
+      .freq,
+      .fopt {
+        margin-left: 0.5em;
+        font-size: 0.72rem;
+        font-weight: 700;
+      }
+      .freq {
+        color: #ffb0b0;
+      }
+      .fopt {
+        color: #9aa1cb;
+        font-weight: 500;
+      }
+      .fsup {
+        font-size: 0.76rem;
+        line-height: 1.6;
+        color: #9aa1cb;
+      }
+      .ferr {
+        font-size: 0.8rem;
+        font-weight: 700;
+        line-height: 1.6;
+        color: #ff9b9b;
+      }
+      .ferr[hidden],
+      .cform-sum[hidden],
+      .cform-done[hidden],
+      .cform-done [hidden] {
+        display: none;
+      }
+      .cform [aria-invalid="true"] {
+        border-color: #ff8a8a;
+        border-width: 2px;
+      }
+      .frow3 {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+        gap: 1.2rem 1rem;
+      }
+      /* 誤りのまとめ（送信を押した時に誤りがあれば、ここへ移る） */
+      .cform-sum {
+        display: grid;
+        gap: 0.6rem;
+        padding: 1rem 1.2rem;
+        border: 2px solid #ff8a8a;
+        border-radius: 12px;
+        background: rgba(60, 14, 24, 0.55);
+      }
+      .cform-sum-t {
+        font-weight: 700;
+        color: #ffd0d0;
+      }
+      .cform-sum ul {
+        display: grid;
+        gap: 0.35rem;
+        padding-left: 1.2em;
+      }
+      .cform-sum :global(li) {
+        font-size: 0.86rem;
+      }
+      .cform-sum :global(a) {
+        color: #ffb8b8;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+      .cform-sum :global(a:hover) {
+        color: #fff;
+      }
+      .cpriv {
+        font-size: 0.76rem;
+        line-height: 1.7;
+        color: #9aa1cb;
+      }
+      .cpriv a {
+        color: #9fc2ff;
+        text-underline-offset: 3px;
+      }
+      .cpriv a:hover {
+        color: #fff;
+      }
+      /* 送信した後（入力の欄を隠して、次に何が起きるかだけを出す） */
+      .cform[data-done] > :not(.cform-done) {
+        display: none;
+      }
+      .cform-done {
+        display: grid;
+        gap: 0.7rem;
+        padding: 1.4rem 1.4rem;
+        border: 1px solid rgba(127, 224, 160, 0.45);
+        border-radius: 14px;
+        background: rgba(10, 40, 28, 0.5);
+        line-height: 1.8;
+        color: #d4f5e2;
+      }
+      .cform-done-t {
+        font-weight: 700;
+        font-size: 1.1rem;
+        color: #7fe0a0;
+      }
+      .cform select {
+        appearance: none;
+        background-color: rgba(10, 14, 30, 0.62);
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%23aab3d9' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 0.8rem center;
+        background-size: 12px;
+        border: 1px solid rgba(160, 175, 255, 0.22);
+        border-radius: 12px;
+        padding: 0.85rem 2.2rem 0.85rem 1rem;
+        color: #eef1ff;
+        font-family: inherit;
+        font-size: 0.95rem;
+        min-width: 0;
+        width: 100%;
+      }
+      .cform select:focus {
+        outline: none;
+        border-color: #7fb2ff;
+      }
       .cform input,
       .cform textarea {
         background: rgba(10, 14, 30, 0.62);
@@ -796,8 +1089,12 @@ const ACC: Record<string, string> = {
           grid-template-columns: 1fr;
           gap: 2.5rem;
         }
-        .works li {
+        .works > li {
           grid-template-columns: 0.8rem 1fr;
+        }
+        .wdl > div {
+          grid-template-columns: 1fr;
+          gap: 0.1rem;
         }
         .works .wtags {
           grid-column: 1 / -1;
@@ -822,14 +1119,40 @@ const ACC: Record<string, string> = {
       }
       footer {
         border-top: 1px solid rgba(160, 175, 255, 0.14);
-        padding: 3rem 0 9.5rem; /* 下は左下の時間の操作・右下の釦の高さぶん（いちばん下でも文字に重ねない） */
+        padding: 3rem 0 13rem; /* 下は左下の時間の操作・右下の釦の高さぶん（いちばん下でも文字に重ねない） */
+        font-size: 0.76rem;
+        color: #9aa1cb;
+      }
+      .fwrap {
+        display: grid;
+        gap: 1.2rem;
+      }
+      .fnav ul {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.3rem 1.6rem;
+        list-style: none;
+      }
+      .fnav a {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        color: #c2c9ec;
+        text-decoration: none;
+      }
+      .fnav a:hover {
+        color: #fff;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+      .fnotice {
+        max-width: 42em;
+        line-height: 1.8;
+      }
+      .fcopy {
         font-family: "JetBrains Mono", "Zen Kaku Gothic New", "Zen Kaku JP fallback", monospace;
         font-size: 0.72rem;
         color: #8b93c4;
-        display: flex;
-        justify-content: space-between;
-        flex-wrap: wrap;
-        gap: 1rem;
       }
 
       /* ── Deck（スクロール段階遷移）。?scroll=free で無効化＝従来の自由スクロール。
@@ -906,11 +1229,14 @@ const ACC: Record<string, string> = {
     <TopNav />
 
     <!-- 右下FAB群（宇宙の音・惑星図鑑） -->
-    <div class="fab-group">
-      <button id="audio-toggle" class="viewer-fab" type="button" aria-pressed="false" aria-label="宇宙の環境音を再生">
+    <div class="fab-group" data-avoid-dock>
+      {/* 読み上げの名前は画面の文字と同じにする（WCAG 2.5.3。声で「宇宙の音」と言って押せるように）。
+          音の釦は切り替えの釦なので、文字は変えずに aria-pressed と青い見た目で押した状態を伝える（W3C ARIA APG の Button の形）。
+          頁の HTML に出さないため、HTML のコメントにしない（出すと書体の字が足りなくなる） */}
+      <button id="audio-toggle" class="viewer-fab" type="button" aria-pressed="false">
         <span aria-hidden="true">♪</span> <span class="audio-label">宇宙の音</span>
       </button>
-      <button id="viewer-open" class="viewer-fab" type="button" aria-label="惑星鑑賞モードを開く">
+      <button id="viewer-open" class="viewer-fab" type="button">
         <span aria-hidden="true">✦</span> 惑星図鑑
       </button>
     </div>
@@ -928,8 +1254,9 @@ const ACC: Record<string, string> = {
             <a class="ghost" href={hero.secondary.href}>{hero.secondary.label} <span aria-hidden="true">→</span></a>
           </div>
           <dl class="stats">
-            {hero.stats.map((s) => (<div><dt class="display">{s.value}</dt><dd>{s.label}</dd></div>))}
+            {hero.stats.map((s) => (<div><dt class="display">{s.value}{s.sample && <sup class="ast">※</sup>}</dt><dd>{s.label}</dd></div>))}
           </dl>
+          <p class="snote">{site.notice.numbers}</p>
         </div>
         <p class="scrollhint" aria-hidden="true">scroll ↓</p>
       </header>
@@ -965,14 +1292,33 @@ const ACC: Record<string, string> = {
             <h2>{wcopy.title}</h2>
             <p class="lead">{wcopy.lead}</p>
           </div>
+          <div class="wfilter reveal-up" role="group" aria-label="分野で絞り込む">
+            <button type="button" class="wchip" data-tag="" aria-pressed="true">すべて（{works.length}）</button>
+            {workTags.map(([t, n]) => (
+              <button type="button" class="wchip" data-tag={t} aria-pressed="false">{t}（{n}）</button>
+            ))}
+          </div>
+          <p class="vh" role="status" data-wcount></p>
           <ul class="works reveal-up">
             {works.map((w, i) => (
-              <li style={`transition-delay:${i * 50}ms`}>
+              <li data-tags={w.data.tags.join("|")} style={`transition-delay:${i * 50}ms`}>
                 <span class="wdot" style={`background:${ACC[w.data.accent]};box-shadow:0 0 18px ${ACC[w.data.accent]}`} />
                 <div class="wmain">
                   <p class="wcat">{w.data.category}</p>
                   <p class="wt">{w.data.title}</p>
                   <p class="wdesc">{w.data.desc}</p>
+                  <details class="wmore">
+                    <summary>詳しく見る<span class="vh">（{w.data.title}）</span><span class="wchev" aria-hidden="true"></span></summary>
+                    <dl class="wdl">
+                      {DETAIL_LABELS.map(([k, label]) => (
+                        <div>
+                          <dt>{label}</dt>
+                          <dd>{w.data.detail[k]}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                    <p class="wfic">{site.notice.work}</p>
+                  </details>
                 </div>
                 <ul class="wtags">
                   {w.data.tags.map((t) => (
@@ -996,12 +1342,13 @@ const ACC: Record<string, string> = {
           <div class="metrics reveal-up">
             {strengths.map((s, i) => (
               <div class="metric" style={`transition-delay:${i * 60}ms`}>
-                <p class="num display">{s.data.metric}<span class="suf">{s.data.suffix}</span></p>
+                <p class="num display">{s.data.metric}<span class="suf">{s.data.suffix}</span>{s.data.sample && <sup class="ast">※</sup>}</p>
                 <p class="mt">{s.data.title}</p>
                 <p class="md">{s.data.desc}</p>
               </div>
             ))}
           </div>
+          <p class="snote reveal-up">{site.notice.numbers}</p>
         </div>
       </section>
 
@@ -1018,21 +1365,30 @@ const ACC: Record<string, string> = {
               <div class:list={["plan", { featured: p.data.featured }]} style={`transition-delay:${i * 70}ms`}>
                 <p class="pen">
                   {p.data.en}
-                  {p.data.featured && <span class="pop">人気</span>}
+                  {p.data.featured && <span class="pop">{pcopy.badge}</span>}
                 </p>
                 <p class="pname">{p.data.name}</p>
-                <p class="pprice display">
-                  {p.data.price}<span class="pper">{p.data.period}</span>
-                </p>
+                {p.data.price != null ? (
+                  <>
+                    <p class="pprice display">{yen(taxIn(p.data.price))}<span class="pper">〜{pcopy.taxIn}</span></p>
+                    <p class="ptax"><span>{pcopy.taxEx} {yen(p.data.price)}〜</span><span>{p.data.period}</span></p>
+                  </>
+                ) : (
+                  <>
+                    <p class="pprice display">{pcopy.ask}</p>
+                    <p class="ptax"><span>{p.data.note}</span><span>{p.data.period}</span></p>
+                  </>
+                )}
                 <ul class="pfeat">
                   {p.data.features.map((f) => (
                     <li>{f}</li>
                   ))}
                 </ul>
-                <a class="plink" href="#contact">このプランで相談する <span aria-hidden="true">→</span></a>
+                <a class="plink" href="#contact" data-plan={p.id}>{p.data.name}プランで相談する <span aria-hidden="true">→</span></a>
               </div>
             ))}
           </div>
+          <p class="pnote reveal-up">{pcopy.note}</p>
         </div>
       </section>
 
@@ -1070,35 +1426,73 @@ const ACC: Record<string, string> = {
             <p class="cnote">{contact.note}</p>
           </div>
           <form class="cform reveal-up" id="contact-form" novalidate>
-            <div class="field">
-              <label for="cf-name">{contact.fields.name.label}</label>
-              <input id="cf-name" name="name" type="text" placeholder={contact.fields.name.placeholder} required />
+            <!-- 誤りのまとめ（GOV.UK・デジタル庁の形。送信を押した時に誤りがあれば、ここへ移る） -->
+            <div class="cform-sum" id="cf-sum" role="group" tabindex="-1" aria-labelledby="cf-sum-t" hidden>
+              <p class="cform-sum-t" id="cf-sum-t"></p>
+              <ul></ul>
             </div>
             <div class="field">
-              <label for="cf-email">{contact.fields.email.label}</label>
-              <input id="cf-email" name="email" type="email" placeholder={contact.fields.email.placeholder} required />
+              <label for="cf-name">{contact.fields.name.label}<span class="freq">{contact.required}</span></label>
+              <p class="ferr" id="cf-name-err" hidden></p>
+              <input id="cf-name" name="name" type="text" autocomplete="name" required aria-describedby="cf-name-err" />
             </div>
             <div class="field">
-              <label for="cf-msg">{contact.fields.message.label}</label>
-              <textarea id="cf-msg" name="message" rows="4" placeholder={contact.fields.message.placeholder} required />
+              <label for="cf-email">{contact.fields.email.label}<span class="freq">{contact.required}</span></label>
+              <p class="fsup" id="cf-email-sup">{contact.fields.email.support}</p>
+              <p class="ferr" id="cf-email-err" hidden></p>
+              <input id="cf-email" name="email" type="email" autocomplete="email" spellcheck="false" required aria-describedby="cf-email-sup cf-email-err" />
+            </div>
+            <div class="frow3">
+              {CHOICES.map((c) => (
+                <div class="field">
+                  <label for={c.id}>{c.label}<span class="fopt">{contact.optional}</span></label>
+                  <select id={c.id} name={c.name}>
+                    <option value="">{contact.choose}</option>
+                    {c.opts.map((o) => (
+                      <option value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+            <div class="field">
+              <label for="cf-msg">{contact.fields.message.label}<span class="freq">{contact.required}</span></label>
+              <p class="fsup" id="cf-msg-sup">{contact.fields.message.support}</p>
+              <p class="ferr" id="cf-msg-err" hidden></p>
+              <textarea id="cf-msg" name="message" rows="5" required aria-describedby="cf-msg-sup cf-msg-err" />
             </div>
             <input type="text" name="company" tabindex="-1" autocomplete="off" class="hp" aria-hidden="true" />
+            <p class="cpriv">{contact.privacy.before}<a href="/privacy/">{contact.privacy.link}</a>{contact.privacy.after}</p>
             <button type="submit" class="btn cform-submit">{contact.submit}</button>
             <p class="cform-status" role="status" aria-live="polite" />
+            <div class="cform-done" tabindex="-1" hidden>
+              <p class="cform-done-t">{contact.done.title}</p>
+              <p data-done="sent">{contact.done.sent}</p>
+              <p data-done="unsent" hidden>{contact.done.unsent}</p>
+            </div>
           </form>
         </div>
       </section>
 
       <footer>
-        <div class="wrap" style="display:flex;justify-content:space-between;width:100%;flex-wrap:wrap;gap:1rem;">
-          <span>© 2026 spark — Creative Studio</span>
-          <span>Branding · Strategy · Design · Development</span>
+        <div class="wrap fwrap">
+          <nav class="fnav" aria-label="サイト内のリンク">
+            <ul>
+              {site.footer.links.map((l) => (
+                <li><a href={l.href}>{l.label}</a></li>
+              ))}
+            </ul>
+          </nav>
+          <p class="fnotice">{site.notice.site}</p>
+          <p class="fcopy">{site.footer.copyright}</p>
         </div>
       </footer>
     </main>
     <Guide />
 
     <script>
+      import { fieldError, type FieldName } from "../lib/contact-fields";
+
       const io = new IntersectionObserver(
         (entries) => {
           for (const e of entries) {
@@ -1170,45 +1564,146 @@ const ACC: Record<string, string> = {
           on = !on;
           master.gain.linearRampToValueAtTime(on ? 0.42 : 0, actx.currentTime + 1.4);
           audioBtn.setAttribute("aria-pressed", String(on));
-          const lbl = audioBtn.querySelector(".audio-label");
-          if (lbl) lbl.textContent = on ? "停止" : "宇宙の音";
+        });
+      }
+
+      // 制作実績の絞り込み（分野の釦。押した釦だけが aria-pressed="true"）
+      const wf = document.querySelector<HTMLElement>(".wfilter");
+      if (wf) {
+        const items = Array.from(document.querySelectorAll<HTMLLIElement>(".works > li"));
+        const countEl = document.querySelector<HTMLElement>("[data-wcount]");
+        wf.addEventListener("click", (e) => {
+          const b = (e.target as Element).closest<HTMLButtonElement>(".wchip");
+          if (!b) return;
+          const tag = b.dataset.tag ?? "";
+          wf.querySelectorAll(".wchip").forEach((c) => c.setAttribute("aria-pressed", String(c === b)));
+          let n = 0;
+          for (const li of items) {
+            const show = !tag || (li.dataset.tags ?? "").split("|").includes(tag);
+            li.hidden = !show;
+            if (show) n++;
+          }
+          if (countEl) countEl.textContent = `${n}件を表示しています`;
         });
       }
 
       // 問い合わせフォーム（/api/contact は Cloudflare Pages Function。dev では未稼働＝本番で動作）
+      // 誤りは欄ごとに「何をすれば直るか」を出し、送信を押した時は上のまとめへ移る（GOV.UK・デジタル庁の形）
       const form = document.getElementById("contact-form") as HTMLFormElement | null;
       if (form) {
         const mountedAt = Date.now();
         const statusEl = form.querySelector(".cform-status") as HTMLElement;
         const btn = form.querySelector(".cform-submit") as HTMLButtonElement;
-        form.addEventListener("submit", async (ev) => {
-          ev.preventDefault();
-          const data = Object.fromEntries(new FormData(form));
-          if (!data.name || !data.email || String(data.message || "").trim().length < 10) {
-            statusEl.textContent = "入力をご確認ください（お名前・メール・10文字以上のご相談内容）。";
-            statusEl.className = "cform-status err";
+        const sum = form.querySelector("#cf-sum") as HTMLElement;
+        const sumT = sum.querySelector(".cform-sum-t") as HTMLElement;
+        const sumList = sum.querySelector("ul") as HTMLUListElement;
+        const done = form.querySelector(".cform-done") as HTMLElement;
+        type Field = { name: FieldName; id: string };
+        const FIELDS: Field[] = [
+          { name: "name", id: "cf-name" },
+          { name: "email", id: "cf-email" },
+          { name: "message", id: "cf-msg" },
+        ];
+        const input = (f: Field) => form.querySelector(`#${f.id}`) as HTMLInputElement | HTMLTextAreaElement;
+        const showErr = (f: Field, msg: string | null) => {
+          const err = form.querySelector(`#${f.id}-err`) as HTMLElement;
+          err.textContent = msg ? `＊${msg}` : "";
+          err.hidden = !msg;
+          if (msg) input(f).setAttribute("aria-invalid", "true");
+          else input(f).removeAttribute("aria-invalid");
+        };
+        type Bad = { f: Field; msg: string };
+        const renderSummary = (bad: Bad[]) => {
+          sumList.replaceChildren();
+          if (!bad.length) {
+            sum.hidden = true;
             return;
           }
+          sumT.textContent = `入力内容を確認してください（${bad.length}件）`;
+          for (const { f, msg } of bad) {
+            const li = document.createElement("li");
+            const a = document.createElement("a");
+            a.href = `#${f.id}`;
+            a.textContent = msg;
+            a.addEventListener("click", (e) => {
+              e.preventDefault();
+              input(f).focus({ preventScroll: true });
+              form.querySelector(`label[for="${f.id}"]`)?.scrollIntoView({ block: "center" });
+            });
+            li.append(a);
+            sumList.append(li);
+          }
+          sum.hidden = false;
+        };
+        const check = (): Bad[] =>
+          FIELDS.map((f) => ({ f, msg: fieldError(f.name, input(f).value) })).filter((x): x is Bad => x.msg !== null);
+
+        // 直った欄は、打っている間に誤りを消す（まだ直っていない時は、打っている途中で誤りを増やさない）
+        for (const f of FIELDS) {
+          input(f).addEventListener("input", () => {
+            if (input(f).getAttribute("aria-invalid") !== "true") return;
+            if (fieldError(f.name, input(f).value)) return;
+            showErr(f, null);
+            if (!sum.hidden) renderSummary(check().filter((b) => input(b.f).getAttribute("aria-invalid") === "true"));
+          });
+        }
+
+        const resetDone = () => {
+          if (!form.dataset.done) return;
+          delete form.dataset.done;
+          done.hidden = true;
+        };
+        // 料金表の「〇〇プランで相談する」から来た時は、そのプランを選んだ状態にする
+        document.querySelectorAll<HTMLAnchorElement>("a.plink[data-plan]").forEach((a) => {
+          a.addEventListener("click", () => {
+            resetDone();
+            const sel = form.querySelector("#cf-plan") as HTMLSelectElement | null;
+            if (sel) sel.value = a.dataset.plan ?? "";
+          });
+        });
+
+        form.addEventListener("submit", async (ev) => {
+          ev.preventDefault();
+          const all = FIELDS.map((f) => ({ f, msg: fieldError(f.name, input(f).value) }));
+          all.forEach(({ f, msg }) => showErr(f, msg));
+          const bad = all.filter((x): x is Bad => x.msg !== null);
+          if (bad.length) {
+            statusEl.textContent = "";
+            statusEl.className = "cform-status";
+            renderSummary(bad);
+            sum.focus();
+            return;
+          }
+          renderSummary([]);
           btn.disabled = true;
           statusEl.className = "cform-status";
-          statusEl.textContent = "送信中…";
+          statusEl.textContent = "送信しています…";
           try {
+            const data = Object.fromEntries(new FormData(form));
             const res = await fetch("/api/contact", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ ...data, _elapsed: Date.now() - mountedAt }),
             });
             if (!res.ok) throw new Error(String(res.status));
-            statusEl.textContent = "送信しました。通常2営業日以内にご返信します。";
-            statusEl.className = "cform-status ok";
+            const body = (await res.json().catch(() => ({}))) as { sent?: boolean };
+            // メールで届いたかどうかで、次に起きる事の文を分ける（届かないのに「返信します」と書かない）
+            const sent = body.sent === true;
             form.reset();
+            statusEl.textContent = "";
+            (done.querySelector('[data-done="sent"]') as HTMLElement).hidden = !sent;
+            (done.querySelector('[data-done="unsent"]') as HTMLElement).hidden = sent;
+            form.dataset.done = sent ? "sent" : "unsent";
+            done.hidden = false;
+            done.focus();
           } catch {
-            statusEl.textContent = "送信に失敗しました。時間をおいて再度お試しください。";
+            statusEl.textContent = "送信できませんでした。通信の状態を確認して、もう一度お試しください。入力した内容は残っています。";
             statusEl.className = "cform-status err";
           } finally {
             btn.disabled = false;
           }
         });
+        form.dataset.ready = "1"; // 試験が「画面の準備ができた」を待つための印
       }
     </script>
 
@@ -1538,6 +2033,8 @@ const ACC: Record<string, string> = {
         window.addEventListener("resize", remeasure);
         window.addEventListener("load", remeasure);
         document.addEventListener("toggle", remeasure, true); // FAQ 開閉で高さが変わるため再計測
+        // 制作実績の絞り込み・フォームの誤りの表示など、窓の大きさは同じまま頁の高さが変わった時も測り直す
+        if ("ResizeObserver" in window) new ResizeObserver(() => remeasure()).observe(document.body);
         window.setTimeout(remeasure, 800); // フォント確定後
 
         // 進行ドット（step モードのみ・desktop。free では生成しない＝品質計測に無影響）

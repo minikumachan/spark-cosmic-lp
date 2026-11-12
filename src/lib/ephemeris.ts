@@ -92,9 +92,25 @@ export function semiMajorAu(key: PlanetKey): number {
   return ELEMENTS[key][0][0];
 }
 
-/** この表が有効な期間（これより外は精度が落ちるので、表示する日付をこの中に収める） */
-export const EPHEM_MIN_MS = Date.UTC(1800, 0, 1);
-export const EPHEM_MAX_MS = Date.UTC(2050, 11, 31);
+/**
+ * この表が有効な期間（1800〜2050 年。これより外は精度が落ちるので、表示する日付をこの中に収める）。
+ * 端は見る人の手元の暦の 1800年1月1日 0時と 2050年12月31日の終わりで決める。
+ * 日付の表示と日付の欄が手元の暦なので、世界標準時で決めると、時差のある地域では端の日が前後の日にずれる
+ * （アメリカでは 2050年12月31日を選ぶと 12月30日になっていた。2026-11-12 に直した）。
+ * 世界標準時の 1800〜2050 年より最大 14 時間はみ出すが、この近似式の誤差に比べれば無視できる。
+ */
+export const EPHEM_MIN_YEAR = 1800;
+export const EPHEM_MAX_YEAR = 2050;
+export const EPHEM_MIN_MS = new Date(EPHEM_MIN_YEAR, 0, 1).getTime();
+export const EPHEM_MAX_MS = new Date(
+  EPHEM_MAX_YEAR,
+  11,
+  31,
+  23,
+  59,
+  59,
+  999,
+).getTime();
 
 const D = Math.PI / 180;
 

@@ -2,6 +2,13 @@
 // 左下の時間の操作（最終発表で追加・2026-11-12 に決めた「本編に時間の操作」）。
 // 3D の時計（src/lib/simclock.ts）とは window の CustomEvent だけでやり取りする。
 // 3D が描かれない環境（WebGL が無い）では時計が一度も知らせて来ないので、この部品も出ない。
+import { EPHEM_MAX_YEAR, EPHEM_MIN_YEAR } from "../../lib/ephemeris";
+
+// 日付の欄で選べる範囲（惑星の位置の計算が合う範囲と同じ。simclock もこの範囲に丸める）。
+// 端は手元の暦の 1月1日と 12月31日。組み立てる PC の時差に左右されないように、年から文字で作る
+const minDate = `${EPHEM_MIN_YEAR}-01-01`;
+const maxDate = `${EPHEM_MAX_YEAR}-12-31`;
+const rangeHint = `${EPHEM_MIN_YEAR}〜${EPHEM_MAX_YEAR}年`;
 ---
 
 <section class="td" aria-label="惑星の位置の日付" data-td hidden>
@@ -9,7 +16,7 @@
   <div class="td-main">
     <p class="td-k">惑星の位置</p>
     <p class="td-date"><span class="td-dv" data-td-date>今日</span><span class="td-rel" data-td-rel></span></p>
-    <button type="button" class="td-mtoggle" aria-expanded="false" aria-controls="td-btns">
+    <button type="button" class="td-mtoggle" aria-expanded="false" aria-controls="td-btns td-pick">
       <span class="td-mt"><span class="td-dv" data-td-date>今日</span><span class="td-rel" data-td-rel></span></span>
       <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 7.5 6 4l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
       <span class="td-sr">日付の操作を開く</span>
@@ -27,6 +34,12 @@
       </button>
       <button type="button" class="td-b td-txt" data-t="speed"><span data-td-speed>速さ 1日/秒</span></button>
       <button type="button" class="td-b td-txt" data-t="today">今日に戻る</button>
+    </div>
+    <!-- 日付を直接選ぶ欄（1か月ずつ送るより早く、誕生日や歴史の日へ飛べる。2026-11-12 まぼさんの選択） -->
+    <div class="td-pick" id="td-pick">
+      <label for="td-date-in">日付を選ぶ</label>
+      <input type="date" id="td-date-in" min={minDate} max={maxDate} aria-describedby="td-date-hint" data-td-input />
+      <span class="td-hint" id="td-date-hint">{rangeHint}</span>
     </div>
   </div>
 </section>
@@ -143,6 +156,36 @@
   .td-mtoggle {
     display: none;
   }
+  .td-pick {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+  }
+  .td-pick label,
+  .td-hint {
+    font-size: 0.7rem;
+    color: #aab3d9;
+    white-space: nowrap;
+  }
+  .td-pick input {
+    color-scheme: dark;
+    min-height: 30px;
+    padding: 0 0.45rem;
+    background: rgba(30, 38, 80, 0.55);
+    border: 1px solid rgba(200, 212, 255, 0.28);
+    border-radius: 8px;
+    color: #e3e8ff;
+    font: inherit;
+    font-size: 0.76rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .td-pick input:hover {
+    border-color: rgba(157, 180, 255, 0.7);
+  }
+  .td-pick input:focus-visible {
+    outline: 2px solid #9db4ff;
+    outline-offset: 2px;
+  }
   .td-sr {
     position: absolute;
     width: 1px;
@@ -225,6 +268,18 @@
       grid-column: 1 / -1;
       order: 0;
     }
+    .td-pick {
+      display: none;
+    }
+    .td[data-open] .td-pick {
+      display: flex;
+      flex-wrap: wrap;
+      grid-column: 1 / -1;
+      order: 4;
+      /* 欄の行の幅で箱を広げない（広がると右下の釦に重なる）。幅は釦の段に合わせ、入らない説明は次の行へ送る */
+      width: 0;
+      min-width: 100%;
+    }
   }
   @media (prefers-reduced-motion: reduce) {
     .td-mtoggle svg {
@@ -262,7 +317,15 @@
     const playBtn = root.querySelector<HTMLButtonElement>('[data-t="play"]');
     const toggle = root.querySelector<HTMLButtonElement>(".td-mtoggle");
     const cv = root.querySelector<HTMLCanvasElement>("[data-td-orr]");
+    const dateIn = root.querySelector<HTMLInputElement>("[data-td-input]");
     let sim: Sim | null = null;
+
+    // 日付の欄の値（手元の暦の YYYY-MM-DD）
+    const pad2 = (n: number) => String(n).padStart(2, "0");
+    const isoLocal = (ms: number) => {
+      const d = new Date(ms);
+      return `${String(d.getFullYear()).padStart(4, "0")}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+    };
 
     const fmt = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "long", day: "numeric" });
     const startOfDay = (ms: number) => {
@@ -340,6 +403,8 @@
           el.classList.toggle("is-today", rel === "今日");
         });
         draw(s.ms);
+        // 打っている途中の欄は書き換えない（離れた時に合わせ直す）
+        if (dateIn && document.activeElement !== dateIn) dateIn.value = isoLocal(s.ms);
       }
       if (root.hidden) root.hidden = false;
     };
@@ -351,6 +416,40 @@
     window.dispatchEvent(new CustomEvent("spark:simdate:get"));
 
     const send = (detail: Record<string, unknown>) => window.dispatchEvent(new CustomEvent("spark:simdate:set", { detail }));
+    if (dateIn) {
+      dateIn.addEventListener("change", () => {
+        const v = dateIn.value;
+        // 打ちかけ（空・範囲の外）の時は何もしない。範囲の外の日は時計の側でも丸められるが、黙って別の日にしないため
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(v) || v < dateIn.min || v > dateIn.max) return;
+        const [y, m, d] = v.split("-").map(Number);
+        // 選んだ日の正午（手元の暦）。0 時にすると時差で前の日の位置になる事がある
+        send({ date: new Date(y, m - 1, d, 12).getTime(), playing: false });
+      });
+      dateIn.addEventListener("blur", () => {
+        if (sim) dateIn.value = isoLocal(sim.ms);
+      });
+    }
+    // スマホで開いた時に右下の釦（data-avoid-dock を付けた物）と重なるなら、その釦を箱の上へ持ち上げる。
+    // 箱を細くすると段が増えて画面を多く隠すので、Android の FAB が下から出た物の上へ逃げるのと同じ形にした（2026-11-12）
+    const avoid = document.querySelector<HTMLElement>("[data-avoid-dock]");
+    const lift = () => {
+      if (!avoid) return;
+      const prev = parseFloat(avoid.style.getPropertyValue("--td-lift")) || 0;
+      let next = 0;
+      if (!root.hidden && root.hasAttribute("data-open")) {
+        const d = root.getBoundingClientRect();
+        const a = avoid.getBoundingClientRect();
+        // 持ち上げる前の位置で比べる
+        const top = a.top + prev;
+        const bottom = a.bottom + prev;
+        if (d.left < a.right && a.left < d.right && d.top < bottom && top < d.bottom) next = Math.ceil(bottom - d.top + 8);
+      }
+      if (next === prev) return;
+      if (next) avoid.style.setProperty("--td-lift", `${next}px`);
+      else avoid.style.removeProperty("--td-lift");
+    };
+    window.addEventListener("resize", lift);
+
     root.addEventListener("click", (e) => {
       const b = (e.target as Element).closest<HTMLButtonElement>("button");
       if (!b) return;
@@ -358,6 +457,7 @@
         const open = !root.hasAttribute("data-open");
         root.toggleAttribute("data-open", open);
         toggle.setAttribute("aria-expanded", String(open));
+        lift();
         return;
       }
       if (!sim) return;
@@ -386,6 +486,7 @@
       if (e.key === "Escape" && root.hasAttribute("data-open")) {
         root.removeAttribute("data-open");
         toggle?.setAttribute("aria-expanded", "false");
+        lift();
       }
     });
   }

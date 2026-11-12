@@ -3,6 +3,10 @@ import AxeBuilder from "@axe-core/playwright";
 
 // 最終発表で足した 3 つ（上の航路と相談の釦・最初の案内・左下の時間の操作）の試験。
 
+// 左下の時間の操作は 3D の最初の 1 枚を描いた後に出るので、出るまで最大 45 秒待つ所がある。
+// 試験 1 本の持ち時間（既定 30 秒）がそれより短いと、PC が混んでいる時に待ちきる前に切られる（2026-11-12 の通し試験）
+test.describe.configure({ timeout: 60_000 });
+
 const markGuideSeen = (page: Page) =>
   page.addInitScript(() => {
     try {

@@ -1,6 +1,12 @@
 // Cloudflare Pages Function: /api/contact （フォーム受信・堅牢化）
 // 静的サイト本体(Astro)とは独立。Cloudflare Pages が functions/ を自動デプロイする。
 import { contactSchema } from "../../src/lib/contact-schema";
+import {
+  BUDGET_OPTIONS,
+  optionLabel,
+  PLAN_OPTIONS,
+  TIMING_OPTIONS,
+} from "../../src/lib/contact-fields";
 
 interface KVNamespace {
   get(key: string): Promise<string | null>;
@@ -90,24 +96,36 @@ export async function onRequestPost(context: EventContext): Promise<Response> {
     if (!ok) return json({ ok: false, error: "turnstile" }, 400);
   }
 
-  // メール転送（Resend キーがあれば送信。無ければ成功扱い＝ローカル/未設定時）
-  if (env.RESEND_API_KEY) {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${env.RESEND_API_KEY}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        from: env.CONTACT_FROM ?? "spark <onboarding@resend.dev>",
-        to: env.CONTACT_TO ?? "owner@example.com",
-        reply_to: parsed.data.email,
-        subject: `【spark】お問い合わせ: ${parsed.data.name}`,
-        text: `お名前: ${parsed.data.name}\nメール: ${parsed.data.email}\n\n${parsed.data.message}`,
-      }),
-    });
-    if (!res.ok) return json({ ok: false, error: "send_failed" }, 502);
-  }
+  // メール転送（Resend キーがあれば送信）。
+  // キーが無い時（ローカル・未設定）は受け付けるが、届いていない事を sent: false で画面に知らせる
+  // （届かないのに「返信します」と出さないため）。
+  if (!env.RESEND_API_KEY) return json({ ok: true, sent: false }, 200);
 
-  return json({ ok: true }, 200);
+  const d = parsed.data;
+  const text = [
+    `お名前: ${d.name}`,
+    `メール: ${d.email}`,
+    `ご希望のプラン: ${optionLabel(PLAN_OPTIONS, d.plan)}`,
+    `ご予算: ${optionLabel(BUDGET_OPTIONS, d.budget)}`,
+    `ご希望の時期: ${optionLabel(TIMING_OPTIONS, d.timing)}`,
+    "",
+    d.message,
+  ].join("\n");
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${env.RESEND_API_KEY}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      from: env.CONTACT_FROM ?? "spark <onboarding@resend.dev>",
+      to: env.CONTACT_TO ?? "owner@example.com",
+      reply_to: d.email,
+      subject: `【spark】お問い合わせ: ${d.name}`,
+      text,
+    }),
+  });
+  if (!res.ok) return json({ ok: false, error: "send_failed" }, 502);
+
+  return json({ ok: true, sent: true }, 200);
 }

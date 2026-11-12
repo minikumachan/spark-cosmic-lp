@@ -29,8 +29,15 @@ export type SimSetDetail = {
 
 let simMs = Date.now();
 let daysPerSec = DEFAULT_DAYS_PER_SEC;
-let playing = DEFAULT_DAYS_PER_SEC !== 0;
+// 「視差効果を減らす」を選んでいる人には、日付を止めた状態で見せる（動かすのは本人が再生を押した時だけ）。
+// WCAG 2.2.2「一時停止・停止・非表示」と、Apple・Google の「動きを減らす」の扱いに合わせる（2026-11-12 まぼさんの選択）。
+const reduceMotion =
+  typeof window !== "undefined" &&
+  typeof window.matchMedia === "function" &&
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+let playing = DEFAULT_DAYS_PER_SEC !== 0 && !reduceMotion;
 let lastDayEmitted = Number.NaN;
+let announced = false;
 const listeners = new Set<(s: SimState) => void>();
 
 const clamp = (ms: number) =>
@@ -66,6 +73,12 @@ function emit() {
 
 /** 描画ループから 1 フレームごとに呼ぶ。deltaSec は大きく飛んでも 0.1 秒までに抑える。 */
 export function advance(deltaSec: number) {
+  // 最初の 1 枚を描いた時に、今の状態を 1 回だけ知らせる（日付の操作の部品はこの知らせで初めて出る）。
+  // 止めた状態で始めた時（動きを減らす設定）は日付が変わらないので、ここで知らせないと部品が出ないまま残る。
+  if (!announced) {
+    announced = true;
+    emit();
+  }
   if (!playing || daysPerSec === 0) return;
   const d = Math.min(Math.max(deltaSec, 0), 0.1);
   const next = clamp(simMs + d * daysPerSec * DAY_MS);

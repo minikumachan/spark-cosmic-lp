@@ -1,16 +1,18 @@
+# sample: true は裏付けの無い見本の数字。頁では「※」を付け、下に見本である事の注記を出す。
 - id: speed
   title: 立ち上がりの速さ
   metric: 2
   suffix: 週間〜
-  desc: 最短2週間でデザイン初稿。意思決定を止めず、スピード感を保ったまま走り切ります。
+  desc: 最短2週間でデザインの初稿をお出しします。意思決定を止めず、スピード感を保ったまま最後まで走り切ります。
   icon: icon_strength_speed_rocket
   accent: coral
 
 - id: strategy
   title: 戦略から伴走
   metric: 120
-  suffix: 社+
-  desc: 120社以上の戦略設計で培った勝ち筋を提供。見た目だけでなく、成果から逆算します。
+  suffix: 件
+  sample: true
+  desc: 120件のプロジェクトで培った勝ち筋を生かし、見た目だけでなく成果から逆算して設計します。
   icon: icon_strength_strategy_compass
   accent: blue
 
@@ -18,14 +20,15 @@
   title: 一貫した世界観
   metric: 360
   suffix: °
-  desc: ロゴから体験まで、全接点でブレないブランドを構築。360°で語れる強さをつくります。
+  desc: ロゴから体験まで、すべての接点でぶれないブランドを築き、どこから見ても伝わる360°の強さをつくります。
   icon: icon_strength_brand_overlap
   accent: purple
 
 - id: user-first
   title: ユーザー起点
   metric: 98
-  suffix: '%'
-  desc: 顧客満足度98%。使う人の視点を最優先に、本当に届く体験を設計します。
+  suffix: "%"
+  sample: true
+  desc: 使う人の視点を最優先にして、本当に届く体験を設計します。
   icon: icon_strength_user
   accent: green
