@@ -4,6 +4,8 @@ import { ScreenQuad, useTexture, useGLTF, PerformanceMonitor, Environment, Light
 import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
 import { LITE } from "./tier";
+import { helio, type PlanetKey } from "../../../lib/ephemeris";
+import { advance, simDateMs } from "../../../lib/simclock";
 
 /* ── 永続コズミック背景：星雲 + 星 + フォトリアル惑星群 + 粒子銀河。
    スクロールで各セクションごとに別の実在惑星へ遷移する「旅」。
@@ -148,11 +150,14 @@ function AtmosphereRim({ color }: { color: string }) {
 //    軌道半径Rは可視化のため圧縮している(実AU比 Neptune/Mercury≒77倍は描画不能)が、
 //    公転角速度 orbit はケプラーの第3法則 T²∝R³ ⇔ ω∝R^(-3/2) に厳密に従わせる
 //    （= orbit ≒ 1.0207·R^-1.5、地球R=10.5でω=0.030に正規化）。これで内惑星ほど速く
-//    外惑星ほど遅い、物理的に正しい相対公転になる。検証: 全惑星で T²/R³ が一定。 ──
+//    外惑星ほど遅い、物理的に正しい相対公転になる。検証: 全惑星で T²/R³ が一定。
+//    ★最終版: 角度は「表示中の日付」の実際の日心黄経に置き換えた（NASA JPL の惑星位置表 Table 1・
+//    src/lib/ephemeris.ts）。今日を開けば今日の並びになる。R・incl・scale は前のまま。 ──
 const SUN_POS = new THREE.Vector3(0, 0, 0);
 type Body = {
-  key: string; src: string; normalSrc?: string;
+  key: PlanetKey; src: string; normalSrc?: string;
   R: number; ang0: number; orbit: number; incl: number; // 軌道半径 / 初期角 / 公転角速度(rad/s) / 軌道傾斜
+  // ↑ ang0・orbit は JPL の表（orbitPos）に置き換えたので位置には使っていない（中間発表のケプラー則の値として残す）
   scale: number; rot: number; tilt: number;             // rot=自転(金星/天王星は逆行)
   ring?: boolean; faintRing?: boolean; rocky?: boolean; atmo?: string;
 };
@@ -167,10 +172,22 @@ const BODIES: Body[] = [
   { key: "neptune", src: "/assets/planet/neptune.webp", R: 47,   ang0: 0.3, orbit: 0.00317, incl: 0.05, scale: 1.0,  rot: 0.06,   tilt: 0.30, atmo: "#5b8cff" },
 ];
 const BODY: Record<string, Body> = Object.fromEntries(BODIES.map((b) => [b.key, b]));
-// 惑星の現在位置（決定論的＝カメラも同式で追従可能）
-function orbitPos(b: Body, t: number, out: THREE.Vector3) {
-  const a = b.ang0 + t * b.orbit;
+// 惑星の現在位置。角度＝表示中の日付の日心黄経（JPL 表 1）。同じ日付なら同じ位置＝カメラも同式で追従可能。
+// 黄経が増える向き＝前の ang0 + t*orbit が増える向きと同じなので、画面上の公転の向きは変わらない。
+const _lon = new Map<string, number>();
+let _lonMs = Number.NaN;
+function orbitPos(b: Body, out: THREE.Vector3) {
+  const ms = simDateMs();
+  if (ms !== _lonMs) { _lon.clear(); _lonMs = ms; } // 1 フレームに何度呼ばれても計算は惑星ごとに 1 回
+  let a = _lon.get(b.key);
+  if (a === undefined) { a = helio(b.key, ms).lon * THREE.MathUtils.DEG2RAD; _lon.set(b.key, a); }
   return out.set(Math.cos(a) * b.R, Math.sin(a) * b.R * b.incl, Math.sin(a) * b.R);
+}
+// 表示中の日付を進める。priority -1 ＝ 惑星とカメラより先に走るので、同じフレームでは全員が同じ日付を読む。
+// 描画が止まっている間（タブが隠れた・図鑑を開いた）は呼ばれないので、戻っても日付は飛ばない。
+function SimClockTicker() {
+  useFrame((_, d) => advance(d), -1);
+  return null;
 }
 
 function FaintRing() {
@@ -196,8 +213,8 @@ function SolarBody({ b }: { b: Body }) {
   const pos = useMemo(() => new THREE.Vector3(), []);
   // 128分割で球の輪郭は完全に滑らか（視覚的に200分割と区別不可）＝品質を保ちつつ頂点数を節約。
   const seg = b.rocky ? (MOBILE ? 96 : 128) : (MOBILE ? 80 : 128);
-  useFrame(({ clock }, d) => {
-    if (grp.current) grp.current.position.copy(orbitPos(b, clock.elapsedTime, pos));
+  useFrame((_, d) => {
+    if (grp.current) grp.current.position.copy(orbitPos(b, pos));
     if (ref.current) ref.current.rotation.y += d * b.rot;
   });
   return (
@@ -242,8 +259,8 @@ function SolarEarth() {
   }, [day, normal, clud, lights]);
   const pos = useMemo(() => new THREE.Vector3(), []);
   const seg = MOBILE ? 96 : 128;
-  useFrame(({ clock }, d) => {
-    if (grp.current) grp.current.position.copy(orbitPos(b, clock.elapsedTime, pos));
+  useFrame((_, d) => {
+    if (grp.current) grp.current.position.copy(orbitPos(b, pos));
     if (earth.current) earth.current.rotation.y += d * b.rot;
     if (clouds.current) clouds.current.rotation.y += d * (b.rot + 0.012);
   });
@@ -323,7 +340,7 @@ function Moon3D({ m }: { m: MoonDef }) {
   useFrame(({ clock }, d) => {
     if (!ref.current) return;
     const t = clock.elapsedTime;
-    orbitPos(BODY[m.parent], t, pp);
+    orbitPos(BODY[m.parent], pp); // 親の惑星の位置は日付から。月そのものの周回は前のまま経過時間で回す
     const a = t * m.speed + m.phase;
     ref.current.position.set(
       pp.x + Math.cos(a) * m.radius,
@@ -1124,15 +1141,15 @@ const _up = new THREE.Vector3(0, 1, 0);
 const _radial = new THREE.Vector3();
 const _tan = new THREE.Vector3();
 const _focus = new THREE.Vector3();
-// 天体 key を t 時点で良く見るカメラ位置(outP)・注視点(outL)を算出。惑星は公転で動くのでこれで追従できる。
-function bodyCamera(key: string, t: number, outP: THREE.Vector3, outL: THREE.Vector3) {
+// 天体 key を表示中の日付で良く見るカメラ位置(outP)・注視点(outL)を算出。惑星は日付で動くのでこれで追従できる。
+function bodyCamera(key: string, outP: THREE.Vector3, outL: THREE.Vector3) {
   if (key === "galaxy") {
     outL.set(GX, GY, GZ);
     outP.set(0, 18, -96); // 太陽系の外縁から銀河を望む
     return;
   }
   const b = BODY[key];
-  orbitPos(b, t, outL); // 注視点＝惑星の現在位置
+  orbitPos(b, outL); // 注視点＝惑星の現在位置
   _radial.copy(outL).normalize(); // 太陽→惑星方向
   _tan.crossVectors(_radial, _up).normalize(); // 黄道面の接線
   const dist = b.scale * 1.5 + 1.1; // 惑星を主役にしつつ近隣/太陽も少し入る
@@ -1307,8 +1324,8 @@ function Rig() {
     f = Math.min(Math.max(f, 0), 1);
     f = f * f * (3 - 2 * f); // smoothstep（区間内をなめらかに）
     // 2つの停止天体の「現在の公転位置」からカメラ枠を算出し補間＝公転する惑星を追従フレーミング
-    bodyCamera(STOPS[i].key, t, p0, l0);
-    bodyCamera((STOPS[i + 1] ?? STOPS[i]).key, t, p1, l1);
+    bodyCamera(STOPS[i].key, p0, l0);
+    bodyCamera((STOPS[i + 1] ?? STOPS[i]).key, p1, l1);
     target.set(
       lerp(p0.x, p1.x, f) + Math.sin(t * 0.06) * 0.22,
       lerp(p0.y, p1.y, f) + Math.sin(t * 0.08) * 0.16,
@@ -1349,6 +1366,7 @@ function Rig() {
   });
   return (
     <>
+      <SimClockTicker />
       <AdaptiveQuality />
       <SceneWarmer warmed={warmed} />
       <SpaceEnv />
