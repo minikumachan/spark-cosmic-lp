@@ -118,7 +118,7 @@ const ACC: Record<string, string> = {
         top: -100px;
         left: 1rem;
         z-index: 300;
-        background: #2f6bff;
+        background: #2a64f6; /* 白い字との差を 4.5 以上に（#2f6bff は 4.49） */
         color: #fff;
         padding: 0.7rem 1.2rem;
         border-radius: 0 0 10px 10px;
@@ -262,7 +262,7 @@ const ACC: Record<string, string> = {
         font-family: "Clash Display", "Zen Kaku Gothic New", "Zen Kaku JP fallback", sans-serif;
         font-weight: 900;
         font-size: clamp(2.6rem, 8vw, 6.5rem);
-        line-height: 0.97;
+        line-height: 1; /* 1 未満だと和文の大きな字の行の箱が次の行に重なる（拡大や字体の差で墨も詰まる） */
         letter-spacing: -0.03em;
         margin: 1.4rem 0;
         max-width: 13.194em; /* 18ch 相当（Clash Display の 0 は 0.733 字）。ch は書体が届く前の代わりの書体で幅が変わり、折り返しが変わって画面がずれるため、届いた後と同じ幅の em で書く */
@@ -283,7 +283,7 @@ const ACC: Record<string, string> = {
       }
       .btn {
         display: inline-block;
-        background: #2f6bff;
+        background: #2a64f6; /* 白い字との差を 4.5 以上に（#2f6bff は 4.49） */
         color: #fff;
         font-weight: 700;
         padding: 0.95rem 1.9rem;
@@ -580,7 +580,7 @@ const ACC: Record<string, string> = {
         gap: 0.7rem;
       }
       .pop {
-        background: #2f6bff;
+        background: #2a64f6; /* 白い字との差を 4.5 以上に（#2f6bff は 4.49） */
         color: #fff;
         font-size: 0.6rem;
         padding: 0.15rem 0.6rem;
@@ -884,6 +884,12 @@ const ACC: Record<string, string> = {
           scroll-padding-bottom: 5.5rem;
         }
       }
+      /* 背の低い画面（拡大 400% の 320×256 や横向きのスマホ）では scroll ↓ がヒーローの数字に重なるので出さない */
+      @media (max-height: 520px) {
+        .scrollhint {
+          display: none;
+        }
+      }
     </style>
   </head>
   <body>
@@ -919,7 +925,7 @@ const ACC: Record<string, string> = {
             {hero.stats.map((s) => (<div><dt class="display">{s.value}</dt><dd>{s.label}</dd></div>))}
           </dl>
         </div>
-        <p class="scrollhint">scroll ↓</p>
+        <p class="scrollhint" aria-hidden="true">scroll ↓</p>
       </header>
 
       <!-- SERVICES (01・罫線リスト) -->

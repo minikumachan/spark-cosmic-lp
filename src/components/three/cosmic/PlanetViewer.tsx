@@ -482,6 +482,8 @@ export default function PlanetViewer() {
   const [idx, setIdx] = useState(0);
   const controls = useRef<Controls | null>(null);
   const selectorRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
   // 選択中の天体チップを常にビューポート中央へスクロール（モバイルで探しやすい）
   useEffect(() => {
     if (!open) return;
@@ -526,10 +528,28 @@ export default function PlanetViewer() {
     window.dispatchEvent(new CustomEvent("cosmic:viewer", { detail: { open } }));
     return () => { document.documentElement.style.overflow = ""; };
   }, [open]);
+  // 開いている間は後ろの頁を inert にする。aria-modal は読み上げへの宣言だけで、Tab は後ろの頁へ抜けていた。
+  // 開いたら閉じる釦へ焦点を移し、閉じたら開いた釦へ戻す（WAI-ARIA APG の Dialog (Modal) の型）
+  useEffect(() => {
+    if (!open) return;
+    const host = overlayRef.current;
+    if (!host) return;
+    let top: Element = host;
+    while (top.parentElement && top.parentElement !== document.body) top = top.parentElement;
+    const was = document.activeElement;
+    const back = was instanceof HTMLElement && was !== document.body ? was : document.getElementById("viewer-open");
+    const others = Array.from(document.body.children).filter((el) => el !== top && !el.hasAttribute("inert"));
+    others.forEach((el) => el.setAttribute("inert", ""));
+    closeRef.current?.focus({ preventScroll: true });
+    return () => {
+      others.forEach((el) => el.removeAttribute("inert"));
+      back?.focus({ preventScroll: true });
+    };
+  }, [open]);
   if (!open) return null;
   const p = PLANETS[idx];
   return (
-    <div role="dialog" aria-modal="true" aria-label="惑星鑑賞" className="pv-overlay">
+    <div ref={overlayRef} role="dialog" aria-modal="true" aria-label="惑星鑑賞" className="pv-overlay">
       <style>{PV_CSS}</style>
       <Canvas camera={{ position: [0, 0.3, 4], fov: 45, near: 0.05, far: 700 }} dpr={LITE ? 1 : [1, 2]} gl={{ antialias: !LITE, alpha: false, stencil: false, powerPreference: "high-performance" }} onCreated={onGlCreated} style={{ position: "absolute", inset: 0 }}>
         <color attach="background" args={["#04050b"]} />
@@ -565,7 +585,7 @@ export default function PlanetViewer() {
           </p>
           <h2 className="pv-name">{p.name}</h2>
         </div>
-        <button className="pv-close" onClick={() => setOpen(false)} aria-label="閉じる" title="閉じる">✕</button>
+        <button ref={closeRef} className="pv-close" onClick={() => setOpen(false)} aria-label="閉じる" title="閉じる"><span aria-hidden="true">✕</span></button>
       </header>
 
       <div className="pv-bottom">
@@ -622,7 +642,7 @@ const PV_CSS = `
   background:rgba(140,150,255,.08);border:1px solid rgba(160,175,255,.2);color:#aab2dc;border-radius:999px;padding:0 1rem;white-space:nowrap;
   font-family:"Zen Kaku Gothic New",sans-serif;font-size:.9rem;transition:background .2s,color .2s,border-color .2s,transform .15s}
 .pv-chip:active{transform:scale(.95)}
-.pv-chip[aria-selected="true"]{background:#2f6bff;border-color:#2f6bff;color:#fff;box-shadow:0 6px 20px rgba(47,107,255,.45)}
+.pv-chip[aria-selected="true"]{background:#2a64f6;border-color:#2a64f6;color:#fff;box-shadow:0 6px 20px rgba(47,107,255,.45)}
 
 @media (min-width:760px){
   .pv-top{padding-top:1.5rem}

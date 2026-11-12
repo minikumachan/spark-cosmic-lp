@@ -79,6 +79,29 @@ test("惑星図鑑（鑑賞モード）が開き、Escで閉じる", async ({ pa
   await expect(page.locator('[role="dialog"]')).toHaveCount(0);
 });
 
+test("惑星図鑑を開くと焦点が中へ入り、Tab で後ろの頁へ抜けず、閉じると開いた釦へ戻る", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/?guide=0", { waitUntil: "networkidle" });
+  const fab = page.locator("#viewer-open");
+  await expect(async () => {
+    await fab.click();
+    await expect(page.locator('[role="dialog"]')).toBeVisible({ timeout: 2000 });
+  }).toPass({ timeout: 30000 });
+  await expect(page.locator(".pv-close")).toBeFocused();
+  for (let i = 0; i < 20; i++) {
+    await page.keyboard.press("Tab");
+    const where = await page.evaluate(() => {
+      const a = document.activeElement;
+      if (!a || a === document.body) return "outside";
+      return a.closest(".pv-overlay") ? "viewer" : "behind";
+    });
+    expect(where, `Tab ${i + 1} 回目`).not.toBe("behind");
+  }
+  await page.keyboard.press("Escape");
+  await expect(page.locator('[role="dialog"]')).toHaveCount(0);
+  await expect(fab).toBeFocused();
+});
+
 test("axe a11y 違反0（dark・reduced-motion）", async ({ page }) => {
   // 動く宇宙背景・遷移の途中色を避けて確定状態で測る
   await page.emulateMedia({ reducedMotion: "reduce" });
