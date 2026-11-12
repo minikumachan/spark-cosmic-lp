@@ -84,9 +84,9 @@
 
   /* font families（@font-face は fonts.css）
      display は Latin=Clash Display / JP=Zen Kaku Gothic New をグリフ単位で使い分ける。 */
-  --font-display: "Clash Display", "Zen Kaku Gothic New", system-ui, sans-serif;
-  --font-body: "Zen Kaku Gothic New", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", "Zen Kaku Gothic New", ui-monospace, monospace;
+  --font-display: "Clash Display", "Zen Kaku Gothic New", "Zen Kaku JP fallback", system-ui, sans-serif;
+  --font-body: "Zen Kaku Gothic New", "Zen Kaku JP fallback", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Zen Kaku Gothic New", "Zen Kaku JP fallback", ui-monospace, monospace;
 
   /* motion easing（quint=減速リビール / spring=押下の弾性 / editorial=滑らかな入場） */
   --ease-quint: cubic-bezier(0.22, 1, 0.36, 1);

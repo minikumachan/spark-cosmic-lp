@@ -10,6 +10,14 @@
 @font-face { font-family: "Zen Kaku Gothic New"; src: url("/fonts/ZenKakuGothicNew-400.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
 @font-face { font-family: "Zen Kaku Gothic New"; src: url("/fonts/ZenKakuGothicNew-700.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
 @font-face { font-family: "Zen Kaku Gothic New"; src: url("/fonts/ZenKakuGothicNew-900.woff2") format("woff2"); font-weight: 900; font-style: normal; font-display: swap; }
+/* ─── Zen Kaku が届く前に日本語を描く代わりの書体（2026-11-12） ───
+   届く前は system-ui で描かれ、Windows では かなを細く詰めた「游ゴシック UI」になる（あ 0.82 字・、 0.66 字）。
+   Zen Kaku は かな・句読点が 1 字幅なので、届いた時に折り返しが増えて画面がずれていた（CLS）。
+   かなが 1 字幅の端末の書体（ヒラギノ・游ゴシック・Noto・メイリオ）を日本語の範囲だけに当て、届く前と後で折り返しを同じにする。
+   縦の寸法は Zen Kaku（hhea 1.16 / 0.288）に合わせる。どれも無い端末は今まで通り system-ui に落ちる。 */
+@font-face { font-family: "Zen Kaku JP fallback"; src: local("Hiragino Sans W3"), local("HiraginoSans-W3"), local("Yu Gothic Medium"), local("YuGothic-Medium"), local("Noto Sans CJK JP Regular"), local("NotoSansCJKjp-Regular"), local("Noto Sans JP Regular"), local("NotoSansJP-Regular"), local("Meiryo"); font-weight: 400; font-style: normal; size-adjust: 100%; ascent-override: 116%; descent-override: 28.8%; line-gap-override: 0%; unicode-range: U+203B, U+3000-30FF, U+31F0-31FF, U+3400-4DBF, U+4E00-9FFF, U+F900-FAFF, U+FF00-FFEF; }
+@font-face { font-family: "Zen Kaku JP fallback"; src: local("Hiragino Sans W6"), local("HiraginoSans-W6"), local("Yu Gothic Bold"), local("YuGothic-Bold"), local("Noto Sans CJK JP Bold"), local("NotoSansCJKjp-Bold"), local("Noto Sans JP Bold"), local("NotoSansJP-Bold"), local("Meiryo Bold"), local("Meiryo-Bold"); font-weight: 700; font-style: normal; size-adjust: 100%; ascent-override: 116%; descent-override: 28.8%; line-gap-override: 0%; unicode-range: U+203B, U+3000-30FF, U+31F0-31FF, U+3400-4DBF, U+4E00-9FFF, U+F900-FAFF, U+FF00-FFEF; }
+@font-face { font-family: "Zen Kaku JP fallback"; src: local("Hiragino Sans W8"), local("HiraginoSans-W8"), local("Hiragino Sans W6"), local("HiraginoSans-W6"), local("Yu Gothic Bold"), local("YuGothic-Bold"), local("Noto Sans CJK JP Black"), local("NotoSansCJKjp-Black"), local("Noto Sans JP Black"), local("NotoSansJP-Black"), local("Meiryo Bold"), local("Meiryo-Bold"); font-weight: 900; font-style: normal; size-adjust: 100%; ascent-override: 116%; descent-override: 28.8%; line-gap-override: 0%; unicode-range: U+203B, U+3000-30FF, U+31F0-31FF, U+3400-4DBF, U+4E00-9FFF, U+F900-FAFF, U+FF00-FFEF; }
 
 /* ─── JetBrains Mono（数値/ラベル） ─── */
 @font-face { font-family: "JetBrains Mono"; src: url("/fonts/JetBrainsMono-500.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; }
