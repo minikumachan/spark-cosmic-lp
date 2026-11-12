@@ -8,21 +8,27 @@ import TopNav from "../components/ui/TopNav.astro";
 import TimeDock from "../components/ui/TimeDock.astro";
 import Guide from "../components/ui/Guide.astro";
 import { buildMeta, ORGANIZATION_JSONLD } from "../lib/seo";
+import { inFileOrder } from "../lib/order";
+import servicesYaml from "../data/services.yaml?raw";
+import strengthsYaml from "../data/strengths.yaml?raw";
+import worksYaml from "../data/works.yaml?raw";
+import pricingYaml from "../data/pricing.yaml?raw";
+import faqYaml from "../data/faq.yaml?raw";
 const meta = buildMeta({
   title: "ブランドも、体験も、次のステージへ",
   description:
     "spark は、ブランド戦略からデザイン・開発までを一気通貫で手がけるクリエイティブスタジオ。太陽系を旅するインタラクティブな宇宙体験で、あなたのブランドを次のステージへ。",
 });
 const { hero, contact } = site;
-const services = await getCollection("services");
+const services = inFileOrder(await getCollection("services"), servicesYaml, "services");
 const copy = site.sections.services;
-const strengths = await getCollection("strengths");
+const strengths = inFileOrder(await getCollection("strengths"), strengthsYaml, "strengths");
 const scopy = site.sections.strengths;
-const works = await getCollection("works");
+const works = inFileOrder(await getCollection("works"), worksYaml, "works");
 const wcopy = site.sections.works;
-const pricing = await getCollection("pricing");
+const pricing = inFileOrder(await getCollection("pricing"), pricingYaml, "pricing");
 const pcopy = site.sections.pricing;
-const faq = await getCollection("faq");
+const faq = inFileOrder(await getCollection("faq"), faqYaml, "faq");
 const fcopy = site.sections.faq;
 
 // FAQPage 構造化データ（リッチリザルト）
@@ -919,7 +925,7 @@ const ACC: Record<string, string> = {
           <p class="lead">{hero.lead}</p>
           <div class="cta">
             <a class="btn" href={hero.primary.href}>{hero.primary.label}</a>
-            <a class="ghost" href={hero.secondary.href}>{hero.secondary.label} →</a>
+            <a class="ghost" href={hero.secondary.href}>{hero.secondary.label} <span aria-hidden="true">→</span></a>
           </div>
           <dl class="stats">
             {hero.stats.map((s) => (<div><dt class="display">{s.value}</dt><dd>{s.label}</dd></div>))}
@@ -1023,7 +1029,7 @@ const ACC: Record<string, string> = {
                     <li>{f}</li>
                   ))}
                 </ul>
-                <a class="plink" href="#contact">このプランで相談する →</a>
+                <a class="plink" href="#contact">このプランで相談する <span aria-hidden="true">→</span></a>
               </div>
             ))}
           </div>
