@@ -1,6 +1,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls, useTexture, Stars, Html } from "@react-three/drei";
+import { OrbitControls, Stars, Html } from "@react-three/drei";
+import { useTexture, onGlCreated } from "./gpu";
 import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import * as THREE from "three";
 import { LITE } from "./tier";
@@ -530,7 +531,7 @@ export default function PlanetViewer() {
   return (
     <div role="dialog" aria-modal="true" aria-label="惑星鑑賞" className="pv-overlay">
       <style>{PV_CSS}</style>
-      <Canvas camera={{ position: [0, 0.3, 4], fov: 45, near: 0.05, far: 700 }} dpr={LITE ? 1 : [1, 2]} gl={{ antialias: !LITE, alpha: false, stencil: false, powerPreference: "high-performance" }} style={{ position: "absolute", inset: 0 }}>
+      <Canvas camera={{ position: [0, 0.3, 4], fov: 45, near: 0.05, far: 700 }} dpr={LITE ? 1 : [1, 2]} gl={{ antialias: !LITE, alpha: false, stencil: false, powerPreference: "high-performance" }} onCreated={onGlCreated} style={{ position: "absolute", inset: 0 }}>
         <color attach="background" args={["#04050b"]} />
         <ambientLight intensity={0.06} />
         <directionalLight position={[-16, 12, 24]} intensity={3.2} color="#fff4e6" />

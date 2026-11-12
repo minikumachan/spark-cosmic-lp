@@ -1,6 +1,7 @@
 import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { ScreenQuad, useTexture, useGLTF, PerformanceMonitor, Environment, Lightformer } from "@react-three/drei";
+import { ScreenQuad, useGLTF, PerformanceMonitor, Environment, Lightformer } from "@react-three/drei";
+import { useTexture, queueUpload, onGlCreated } from "./gpu";
 import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
 import { LITE } from "./tier";
@@ -1199,7 +1200,7 @@ function useWarmup(delayMs = 700) {
   return warmed;
 }
 
-// ウォーム時に全シェーダを非同期コンパイル＋全テクスチャをGPUへ事前アップロード（同期ストール回避）。
+// ウォーム時に全シェーダを非同期コンパイル＋全テクスチャをGPUへ事前アップロード（1 フレームに 1 枚ずつ。gpu.ts の queueUpload）。
 // 遅れてデコードされるテクスチャを取りこぼさないよう、ウォームパスを数回反復する。
 function SceneWarmer({ warmed }: { warmed: boolean }) {
   const gl = useThree((s) => s.gl);
@@ -1227,7 +1228,8 @@ function SceneWarmer({ warmed }: { warmed: boolean }) {
           for (const key of ["map", "normalMap", "bumpMap", "alphaMap", "emissiveMap", "displacementMap"] as const) {
             const tex = (mat as unknown as Record<string, THREE.Texture | null>)[key];
             if (tex && tex.image && !uploaded.has(tex)) {
-              try { anyGl.initTexture(tex); uploaded.add(tex); } catch {}
+              queueUpload(gl, tex);
+              uploaded.add(tex);
             }
           }
         }
@@ -1455,6 +1457,7 @@ export default function CosmicStage() {
         frameloop={active ? "always" : "never"}
         camera={{ position: [0, 0.2, 3.6], fov: 50 }}
         gl={{ antialias: !MOBILE, alpha: false, stencil: false, powerPreference: "high-performance" }}
+        onCreated={onGlCreated}
       >
         <Rig />
       </Canvas>
