@@ -12,7 +12,8 @@
     "lhci": "lhci autorun",
     "predeploy": "astro build",
     "deploy": "wrangler pages deploy",
-    "check:ephem": "node --experimental-strip-types --disable-warning=ExperimentalWarning tests/ephemeris.check.mjs"
+    "check:ephem": "node --experimental-strip-types --disable-warning=ExperimentalWarning tests/ephemeris.check.mjs",
+    "check:glyphs": "py scripts/check_glyphs.py"
   },
   "dependencies": {
     "@astrojs/react": "^5.0.7",

@@ -7,9 +7,9 @@
 @font-face { font-family: "Clash Display"; src: url("/fonts/ClashDisplay-700.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
 
 /* ─── Zen Kaku Gothic New（本文 JP+EN・japaneseサブセットはLatin内包） ─── */
-@font-face { font-family: "Zen Kaku Gothic New"; src: url("/fonts/ZenKakuGothicNew-400.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
-@font-face { font-family: "Zen Kaku Gothic New"; src: url("/fonts/ZenKakuGothicNew-700.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
-@font-face { font-family: "Zen Kaku Gothic New"; src: url("/fonts/ZenKakuGothicNew-900.woff2") format("woff2"); font-weight: 900; font-style: normal; font-display: swap; }
+@font-face { font-family: "Zen Kaku Gothic New"; src: url("/fonts/ZenKakuGothicNew-400.f98da8dd.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Zen Kaku Gothic New"; src: url("/fonts/ZenKakuGothicNew-700.19492bd0.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "Zen Kaku Gothic New"; src: url("/fonts/ZenKakuGothicNew-900.9961b389.woff2") format("woff2"); font-weight: 900; font-style: normal; font-display: swap; }
 /* ─── Zen Kaku が届く前に日本語を描く代わりの書体（2026-11-12） ───
    届く前は system-ui で描かれ、Windows では かなを細く詰めた「游ゴシック UI」になる（あ 0.82 字・、 0.66 字）。
    Zen Kaku は かな・句読点が 1 字幅なので、届いた時に折り返しが増えて画面がずれていた（CLS）。
