@@ -9,9 +9,21 @@
 //     向きの指定が効かない古い Safari（17 未満）と Firefox（98 未満）は前のまま <img> で読む。
 //  2. GPU へ送るのは 1 フレームに 1 枚にする（queueUpload）。描く前に要る絵は three が描く時にその場で送る。
 //  3. 本番ではシェーダの誤りの確認（checkShaderErrors）を切る（確認のための同期の待ちが無くなる。three.js の説明書の勧め）。
+//
+// 軽量ティア（tier.ts の LITE。スマホなど）では、横 2048 を超える絵を縮めた版（public/assets/planet/lite/）を読む。
+// ImageBitmap は展開した絵をメモリに持ち続けるので、全部で約 164MiB を約 96MiB に減らす。
+// 軽量ティアの 3D は等倍（dpr 1）で描くので見た目は変わらない。縮めた版と一覧は scripts/make_lite_textures.mjs が作る。
 import * as THREE from "three";
 import { useEffect } from "react";
 import { useLoader, useThree } from "@react-three/fiber";
+import { LITE } from "./tier";
+import liteNames from "./lite-textures.json";
+
+const LITE_SET = new Set<string>(LITE ? (liteNames as string[]) : []);
+function pick(url: string): string {
+  const m = /^\/assets\/planet\/([^/]+)\.webp$/.exec(url);
+  return m && LITE_SET.has(m[1]) ? `/assets/planet/lite/${m[1]}.webp` : url;
+}
 
 const BITMAP = (() => {
   if (typeof window === "undefined" || typeof createImageBitmap === "undefined")
@@ -53,7 +65,7 @@ class BitmapTextureLoader extends THREE.Loader<THREE.Texture> {
     if (!p) {
       p = new Promise<THREE.Texture>((resolve, reject) => {
         this.inner.load(
-          url,
+          pick(url),
           (bitmap) => {
             const tex = new THREE.Texture(
               bitmap as unknown as HTMLImageElement,
@@ -73,9 +85,19 @@ class BitmapTextureLoader extends THREE.Loader<THREE.Texture> {
   }
 }
 
+// 古い Safari・Firefox は <img> で読む。軽量ティアの縮めた版はこちらでも使う（古い iPhone ほどメモリが少ない）
+class PickTextureLoader extends THREE.TextureLoader {
+  load(
+    ...args: Parameters<THREE.TextureLoader["load"]>
+  ): ReturnType<THREE.TextureLoader["load"]> {
+    const [url, ...rest] = args;
+    return super.load(pick(url), ...rest);
+  }
+}
+
 const Loader = (BITMAP
   ? BitmapTextureLoader
-  : THREE.TextureLoader) as unknown as typeof THREE.TextureLoader;
+  : PickTextureLoader) as unknown as typeof THREE.TextureLoader;
 
 // GPU へ送る順番待ち。1 フレームに 1 枚だけ送る（renderer ごとに 1 回）
 const queued = new WeakMap<THREE.WebGLRenderer, WeakSet<THREE.Texture>>();
