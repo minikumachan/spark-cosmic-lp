@@ -543,8 +543,10 @@ const HERO_ROCKS: { key: string; pos: [number, number, number]; scale: number; t
   { key: "HeroRockB", pos: [-5.6, -3.4, -12.2], scale: 1.7, tint: "#8f877c", spin: 0.035 },
   { key: "HeroRockC", pos: [-14.2, 0.6, -16.0], scale: 1.5, tint: "#a39584", spin: 0.06 },
 ];
+// GLB は圧縮していないので、Draco と meshopt の復号器は付けない（useGLTF の 2・3 番目の引数を false にする）。
+// meshopt の復号器は付けた時点で WebAssembly を読み込もうとし、CSP（wasm-unsafe-eval 無し）に止められてコンソールにエラーが出ていた。
 function HeroAsteroids() {
-  const gltf = useGLTF(HERO_ROCKS_URL);
+  const gltf = useGLTF(HERO_ROCKS_URL, false, false);
   const [moonMap, moonNrm] = useTexture(["/assets/planet/moon.webp", "/assets/planet/moon_n.webp"]);
   useMemo(() => {
     moonMap.colorSpace = THREE.SRGBColorSpace;
@@ -799,7 +801,7 @@ function ShootingStars() {
 // 彗星（Blender製の氷岩核＋コマ＋たなびく尾・ゆっくり漂う）
 const COMET_URL = "/assets/3d/comet-nucleus.glb";
 function CometNucleusMesh() {
-  const gltf = useGLTF(COMET_URL);
+  const gltf = useGLTF(COMET_URL, false, false);
   const geo = useMemo(() => {
     let g: THREE.BufferGeometry | null = null;
     gltf.scene.traverse((o) => {
@@ -1062,7 +1064,7 @@ function Galaxy() {
 //    高コストな屈折は使わず「自発光核(Bloom内光)＋半透明標準外殻＋フレネルリム」で表現＝1オブジェクト・低コスト。 ──
 const EMBLEM_URL = "/assets/3d/spark-emblem.glb";
 function SparkEmblem() {
-  const gltf = useGLTF(EMBLEM_URL);
+  const gltf = useGLTF(EMBLEM_URL, false, false);
   const grp = useRef<THREE.Group>(null);
   // 名前でジオメトリを分離（glTFの名前サニタイズに頑健）
   const { core, shell } = useMemo(() => {
@@ -1482,7 +1484,7 @@ const CAN_RENDER_3D =
 
 if (CAN_RENDER_3D) {
   // GLB（接近時のポップイン防止。CosmicStage自体が遅延ロードのためLCP後に発火）
-  useGLTF.preload(COMET_URL);
+  useGLTF.preload(COMET_URL, false, false);
   // 全惑星テクスチャ（アイドルウォームで確実にGPUへ載せ、スクロール接近時のアップロード由来のカクつきを消す）
   for (const u of [
     "/assets/planet/earth_day.webp", "/assets/planet/earth_normal.webp",

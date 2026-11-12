@@ -9,7 +9,7 @@ import { vertexShader, fragmentShader } from "./shaders";
 function Knot() {
   const mesh = useRef<THREE.Mesh>(null);
   const mat = useRef<THREE.ShaderMaterial>(null);
-  const { nodes } = useGLTF("/models/hero.glb", false);
+  const { nodes } = useGLTF("/models/hero.glb", false, false);
 
   const geometry = useMemo(() => {
     const m = Object.values(nodes).find(
@@ -49,7 +49,7 @@ function Knot() {
   );
 }
 
-useGLTF.preload("/models/hero.glb", false);
+useGLTF.preload("/models/hero.glb", false, false);
 
 export default function HeroScene() {
   return (
