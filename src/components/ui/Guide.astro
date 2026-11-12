@@ -1,0 +1,209 @@
+---
+// 最初の案内「spark の歩き方」（最終発表で追加・2026-11-12 に決めた「最初に 1 回だけ出す」）。
+// 初めて来た時だけ自動で開く。「次からは表示しない」を外して閉じれば次も出る。上の航路の「使い方」からいつでも開ける。
+// ?guide=1 で必ず開き、?guide=0 で開かない（発表の録画と試験用）。
+---
+
+<dialog class="gd" id="spark-guide" aria-labelledby="gd-title" aria-describedby="gd-sub">
+  <form method="dialog" class="gd-card">
+    <p class="gd-k">How to travel</p>
+    <h2 id="gd-title">spark の歩き方</h2>
+    <p id="gd-sub" class="gd-sub">地球から銀河まで、太陽系を旅しながら spark を紹介します。</p>
+    <ol class="gd-steps">
+      <li>
+        <svg viewBox="0 0 40 40" fill="none" stroke="#8fb7ff" stroke-width="2" aria-hidden="true"><rect x="13" y="6" width="14" height="24" rx="7"></rect><path d="M20 11v5"></path><path d="M15 34l5 4 5-4"></path></svg>
+        <div>
+          <b>スクロールで旅をする</b>
+          <span>ホイールを回すか指でなぞると、次の星へ進みます。上の星の名前を押すと、その場所へ移動します。</span>
+        </div>
+      </li>
+      <li>
+        <svg viewBox="0 0 40 40" fill="none" stroke="#8fb7ff" stroke-width="2" aria-hidden="true"><circle cx="20" cy="20" r="9"></circle><path d="M6 20a14 6 0 0 0 28 0"></path><path d="M31 14l3 6-6 1"></path></svg>
+        <div>
+          <b>惑星図鑑で星を回す</b>
+          <span>右下の「惑星図鑑」で、好きな星をドラッグして回せます。</span>
+        </div>
+      </li>
+      <li>
+        <svg viewBox="0 0 40 40" fill="none" stroke="#8fb7ff" stroke-width="2" aria-hidden="true"><rect x="7" y="9" width="26" height="24" rx="3"></rect><path d="M7 16h26M14 5v7M26 5v7"></path><path d="M15 25l4 3 7-7"></path></svg>
+        <div>
+          <b>今日の太陽系</b>
+          <span>惑星は今日の実際の位置から動き始めます。左下で日付を止めたり、進めたりできます。</span>
+        </div>
+      </li>
+    </ol>
+    <div class="gd-row">
+      <label><input type="checkbox" name="nomore" checked /> 次からは表示しない</label>
+      <button type="submit" class="gd-go" value="go" autofocus>旅を始める</button>
+    </div>
+  </form>
+</dialog>
+
+<style>
+  .gd {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #eef1ff;
+    width: min(34rem, calc(100vw - 2rem));
+    max-width: none;
+    max-height: calc(100dvh - 2rem);
+    margin: auto;
+    overflow: auto;
+    font-family: "Zen Kaku Gothic New", system-ui, sans-serif;
+  }
+  .gd::backdrop {
+    background: rgba(3, 4, 12, 0.66);
+  }
+  .gd-card {
+    display: grid;
+    gap: 1.05rem;
+    margin: 0;
+    background: rgba(14, 18, 42, 0.97);
+    border: 1px solid rgba(127, 178, 255, 0.32);
+    border-radius: 18px;
+    padding: clamp(1.3rem, 4vw, 2.1rem);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
+  }
+  .gd-k {
+    margin: 0;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: #9db4ff;
+  }
+  .gd h2 {
+    margin: -0.5rem 0 0;
+    font-size: clamp(1.35rem, 3.4vw, 1.7rem);
+    font-weight: 900;
+    line-height: 1.35;
+  }
+  .gd-sub {
+    margin: -0.45rem 0 0;
+    color: #aab3d9;
+    font-size: 0.92rem;
+    line-height: 1.7;
+  }
+  .gd-steps {
+    list-style: none;
+    margin: 0.2rem 0 0;
+    padding: 0;
+    display: grid;
+    gap: 0.95rem;
+  }
+  .gd-steps li {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: 0.9rem;
+    align-items: start;
+  }
+  .gd-steps svg {
+    width: 44px;
+    height: 44px;
+  }
+  .gd-steps b {
+    display: block;
+    font-size: 0.98rem;
+    margin-bottom: 0.1rem;
+  }
+  .gd-steps span {
+    font-size: 0.88rem;
+    color: #c3cae9;
+    line-height: 1.7;
+    line-break: strict;
+    word-break: auto-phrase;
+  }
+  .gd-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem 1rem;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.3rem;
+  }
+  .gd-row label {
+    font-size: 0.86rem;
+    color: #aab3d9;
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    cursor: pointer;
+    min-height: 24px;
+  }
+  .gd-row input {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    accent-color: #4f7dff;
+  }
+  .gd-go {
+    background: #2f6bff;
+    color: #fff;
+    font: inherit;
+    font-weight: 700;
+    font-size: 0.95rem;
+    border: 0;
+    border-radius: 999px;
+    padding: 0.8rem 1.8rem;
+    cursor: pointer;
+    box-shadow: 0 12px 34px rgba(47, 107, 255, 0.4);
+  }
+  .gd-go:hover {
+    background: #3d78ff;
+  }
+  .gd-go:focus-visible,
+  .gd-row input:focus-visible {
+    outline: 2px solid #9db4ff;
+    outline-offset: 3px;
+  }
+</style>
+
+<script>
+  const KEY = "spark:guide:v1";
+  const dlg = document.getElementById("spark-guide") as HTMLDialogElement | null;
+  if (dlg && typeof dlg.showModal === "function") {
+    const nomore = dlg.querySelector<HTMLInputElement>('input[name="nomore"]');
+    const seen = () => {
+      try {
+        return localStorage.getItem(KEY) === "seen";
+      } catch {
+        return false;
+      }
+    };
+    const remember = (on: boolean) => {
+      try {
+        if (on) localStorage.setItem(KEY, "seen");
+        else localStorage.removeItem(KEY);
+      } catch {
+        /* 保存できない環境では毎回出る（表示には困らない） */
+      }
+    };
+    const tell = (open: boolean) => window.dispatchEvent(new CustomEvent("spark:guide", { detail: { open } }));
+    const open = () => {
+      if (dlg.open) return;
+      dlg.showModal();
+      tell(true);
+    };
+    dlg.addEventListener("close", () => {
+      remember(!!nomore?.checked);
+      tell(false);
+    });
+    // 案内の外（暗くした所）を押しても閉じる
+    dlg.addEventListener("click", (e) => {
+      if (e.target === dlg) dlg.close();
+    });
+    // 開いている間は後ろのページを動かさない（スクロールバーを消すと横幅が変わるので、overflow は触らない）。
+    // 案内そのものが画面に収まらない時（横向きの小さいスマホ）だけ、案内の中のスクロールを通す。
+    const block = (e: Event) => {
+      if (dlg.open && dlg.scrollHeight <= dlg.clientHeight + 1) e.preventDefault();
+    };
+    window.addEventListener("wheel", block, { passive: false });
+    window.addEventListener("touchmove", block, { passive: false });
+    document.addEventListener("click", (e) => {
+      if ((e.target as Element | null)?.closest?.("[data-guide-open]")) open();
+    });
+    const q = new URLSearchParams(location.search).get("guide");
+    if (q === "1" || (q !== "0" && !seen())) open();
+  }
+</script>

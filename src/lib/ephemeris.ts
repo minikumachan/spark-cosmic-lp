@@ -87,6 +87,11 @@ const ELEMENTS: Record<PlanetKey, readonly [Elements, Elements]> = {
 
 export const PLANET_KEYS = Object.keys(ELEMENTS) as PlanetKey[];
 
+/** 軌道の大きさ（J2000 時点の軌道長半径・au）。左下の小さな太陽系の図で輪を描くのに使う。 */
+export function semiMajorAu(key: PlanetKey): number {
+  return ELEMENTS[key][0][0];
+}
+
 /** この表が有効な期間（これより外は精度が落ちるので、表示する日付をこの中に収める） */
 export const EPHEM_MIN_MS = Date.UTC(1800, 0, 1);
 export const EPHEM_MAX_MS = Date.UTC(2050, 11, 31);

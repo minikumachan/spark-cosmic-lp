@@ -173,7 +173,8 @@ const BODIES: Body[] = [
 ];
 const BODY: Record<string, Body> = Object.fromEntries(BODIES.map((b) => [b.key, b]));
 // 惑星の現在位置。角度＝表示中の日付の日心黄経（JPL 表 1）。同じ日付なら同じ位置＝カメラも同式で追従可能。
-// 黄経が増える向き＝前の ang0 + t*orbit が増える向きと同じなので、画面上の公転の向きは変わらない。
+// 黄道の x→three の x、黄道の y→three の -z、黄道の北→three の +y（右手系のまま）。
+// 中間発表までは y→+z で鏡写しになっており、北から見て時計回りだった。今日の並びを正しく見せるため反時計回りに直した。
 const _lon = new Map<string, number>();
 let _lonMs = Number.NaN;
 function orbitPos(b: Body, out: THREE.Vector3) {
@@ -181,7 +182,7 @@ function orbitPos(b: Body, out: THREE.Vector3) {
   if (ms !== _lonMs) { _lon.clear(); _lonMs = ms; } // 1 フレームに何度呼ばれても計算は惑星ごとに 1 回
   let a = _lon.get(b.key);
   if (a === undefined) { a = helio(b.key, ms).lon * THREE.MathUtils.DEG2RAD; _lon.set(b.key, a); }
-  return out.set(Math.cos(a) * b.R, Math.sin(a) * b.R * b.incl, Math.sin(a) * b.R);
+  return out.set(Math.cos(a) * b.R, Math.sin(a) * b.R * b.incl, -Math.sin(a) * b.R);
 }
 // 表示中の日付を進める。priority -1 ＝ 惑星とカメラより先に走るので、同じフレームでは全員が同じ日付を読む。
 // 描画が止まっている間（タブが隠れた・図鑑を開いた）は呼ばれないので、戻っても日付は飛ばない。

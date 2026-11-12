@@ -1,0 +1,392 @@
+---
+// 左下の時間の操作（最終発表で追加・2026-11-12 に決めた「本編に時間の操作」）。
+// 3D の時計（src/lib/simclock.ts）とは window の CustomEvent だけでやり取りする。
+// 3D が描かれない環境（WebGL が無い）では時計が一度も知らせて来ないので、この部品も出ない。
+---
+
+<section class="td" aria-label="惑星の位置の日付" data-td hidden>
+  <canvas class="td-orr" width="152" height="152" aria-hidden="true" data-td-orr></canvas>
+  <div class="td-main">
+    <p class="td-k">惑星の位置</p>
+    <p class="td-date"><span class="td-dv" data-td-date>今日</span><span class="td-rel" data-td-rel></span></p>
+    <button type="button" class="td-mtoggle" aria-expanded="false" aria-controls="td-btns">
+      <span class="td-mt"><span class="td-dv" data-td-date>今日</span><span class="td-rel" data-td-rel></span></span>
+      <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 7.5 6 4l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      <span class="td-sr">日付の操作を開く</span>
+    </button>
+    <div class="td-btns" id="td-btns">
+      <button type="button" class="td-b" data-t="back" aria-label="1か月戻す">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3 3 8l5 5M13 3 8 8l5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      </button>
+      <button type="button" class="td-b td-play" data-t="play" aria-label="日付を止める">
+        <svg class="i-pause" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3v10M11 3v10" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"></path></svg>
+        <svg class="i-play" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3.2v9.6L13 8z" fill="currentColor"></path></svg>
+      </button>
+      <button type="button" class="td-b" data-t="fwd" aria-label="1か月進める">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3l5 5-5 5M3 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      </button>
+      <button type="button" class="td-b td-txt" data-t="speed"><span data-td-speed>速さ 1日/秒</span></button>
+      <button type="button" class="td-b td-txt" data-t="today">今日に戻る</button>
+    </div>
+  </div>
+</section>
+
+<style>
+  .td {
+    position: fixed;
+    left: clamp(1rem, 3vw, 2.2rem);
+    bottom: clamp(1rem, 3vw, 2.2rem);
+    z-index: 50;
+    display: flex;
+    gap: 0.9rem;
+    align-items: center;
+    padding: 0.7rem 0.95rem 0.7rem 0.7rem;
+    background: rgba(10, 14, 34, 0.84);
+    border: 1px solid rgba(160, 175, 255, 0.24);
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    color: #eef1ff;
+    font-family: "Zen Kaku Gothic New", system-ui, sans-serif;
+  }
+  .td[hidden] {
+    display: none;
+  }
+  .td-orr {
+    width: 76px;
+    height: 76px;
+    display: block;
+    flex: none;
+  }
+  .td-main {
+    display: grid;
+    gap: 0.35rem;
+    min-width: 0;
+  }
+  .td-k {
+    margin: 0;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    color: #aab3d9;
+  }
+  .td-date {
+    margin: 0;
+    display: flex;
+    gap: 0.55rem;
+    align-items: center;
+    min-height: 1.6rem;
+  }
+  .td-dv {
+    font-size: 1.12rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .td-rel {
+    font-size: 0.72rem;
+    white-space: nowrap;
+    color: #aab3d9;
+  }
+  .td-rel.is-today {
+    font-weight: 700;
+    color: #06140e;
+    background: #5fd3a2;
+    border-radius: 999px;
+    padding: 0.05rem 0.55rem;
+  }
+  .td-btns {
+    display: flex;
+    gap: 0.35rem;
+    align-items: center;
+  }
+  .td-b {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    min-width: 32px;
+    min-height: 30px;
+    padding: 0 0.5rem;
+    background: rgba(30, 38, 80, 0.55);
+    border: 1px solid rgba(200, 212, 255, 0.28);
+    border-radius: 8px;
+    color: #e3e8ff;
+    font: inherit;
+    font-size: 0.76rem;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .td-b:hover {
+    border-color: rgba(157, 180, 255, 0.7);
+    color: #fff;
+  }
+  .td-b svg {
+    width: 14px;
+    height: 14px;
+  }
+  .td-play {
+    background: #2f6bff;
+    border-color: #2f6bff;
+    color: #fff;
+  }
+  .td-play .i-play,
+  .td[data-paused] .td-play .i-pause {
+    display: none;
+  }
+  .td[data-paused] .td-play .i-play {
+    display: block;
+  }
+  .td-b:focus-visible,
+  .td-mtoggle:focus-visible {
+    outline: 2px solid #9db4ff;
+    outline-offset: 2px;
+  }
+  .td-mtoggle {
+    display: none;
+  }
+  .td-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* スマホ: 日付と止める釦だけを出し、日付を押すと残りの釦が上に開く */
+  @media (max-width: 640px) {
+    .td {
+      padding: 0.45rem 0.55rem;
+      gap: 0.5rem;
+      border-radius: 14px;
+      align-items: flex-end;
+    }
+    .td-orr,
+    .td-k,
+    .td-date {
+      display: none;
+    }
+    .td-main {
+      grid-template-columns: auto auto;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .td-mtoggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      order: 2;
+      background: none;
+      border: 0;
+      color: inherit;
+      font: inherit;
+      padding: 0.2rem 0.1rem;
+      cursor: pointer;
+      min-height: 32px;
+    }
+    /* 日付と「今日からN日後」を 2 段にして幅を詰める（右下の釦と重ねない） */
+    .td-mt {
+      display: grid;
+      justify-items: start;
+      line-height: 1.2;
+      text-align: left;
+    }
+    .td-mtoggle .td-dv {
+      font-size: 0.86rem;
+    }
+    .td-mtoggle .td-rel {
+      font-size: 0.66rem;
+    }
+    .td-mtoggle svg {
+      width: 11px;
+      height: 11px;
+      flex: none;
+      transition: transform 0.2s;
+    }
+    .td[data-open] .td-mtoggle svg {
+      transform: rotate(180deg);
+    }
+    .td-btns {
+      display: contents;
+    }
+    .td-btns > .td-b:not(.td-play) {
+      display: none;
+    }
+    .td-play {
+      order: 1;
+    }
+    .td[data-open] .td-main {
+      grid-template-columns: repeat(3, auto);
+    }
+    .td[data-open] .td-btns > .td-b {
+      display: inline-flex;
+      order: 3;
+    }
+    .td[data-open] .td-mtoggle {
+      grid-column: 1 / -1;
+      order: 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .td-mtoggle svg {
+      transition: none;
+    }
+  }
+</style>
+
+<script>
+  import { helio, semiMajorAu, PLANET_KEYS, type PlanetKey } from "../../lib/ephemeris";
+
+  type Sim = { ms: number; daysPerSec: number; playing: boolean; isToday: boolean };
+  const SPEEDS: { v: number; label: string }[] = [
+    { v: 1, label: "1日" },
+    { v: 30, label: "1か月" },
+    { v: 365, label: "1年" },
+  ];
+  const MONTH_MS = 30 * 86_400_000;
+  const COLORS: Record<PlanetKey, string> = {
+    mercury: "#b9b2a8",
+    venus: "#e8c98a",
+    earth: "#5fa8ff",
+    mars: "#e0754a",
+    jupiter: "#d9b48a",
+    saturn: "#e6d3a0",
+    uranus: "#9fe3ea",
+    neptune: "#6f8cff",
+  };
+
+  const root = document.querySelector<HTMLElement>("[data-td]");
+  if (root) {
+    const dates = Array.from(root.querySelectorAll<HTMLElement>("[data-td-date]"));
+    const rels = Array.from(root.querySelectorAll<HTMLElement>("[data-td-rel]"));
+    const speedEl = root.querySelector<HTMLElement>("[data-td-speed]");
+    const playBtn = root.querySelector<HTMLButtonElement>('[data-t="play"]');
+    const toggle = root.querySelector<HTMLButtonElement>(".td-mtoggle");
+    const cv = root.querySelector<HTMLCanvasElement>("[data-td-orr]");
+    let sim: Sim | null = null;
+
+    const fmt = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "long", day: "numeric" });
+    const startOfDay = (ms: number) => {
+      const d = new Date(ms);
+      d.setHours(0, 0, 0, 0);
+      return d.getTime();
+    };
+    // 今日からどれだけ離れたか（「今日」のままでないと、今日の並びから始まった事が伝わらないため）
+    const relText = (ms: number) => {
+      const days = Math.round((startOfDay(ms) - startOfDay(Date.now())) / 86_400_000);
+      if (days === 0) return "今日";
+      const dir = days > 0 ? "後" : "前";
+      const n = Math.abs(days);
+      if (n < 60) return `今日から${n}日${dir}`;
+      if (n < 730) return `今日から${Math.round(n / 30.44)}か月${dir}`;
+      return `今日から${Math.round(n / 365.25)}年${dir}`;
+    };
+
+    const draw = (ms: number) => {
+      if (!cv) return;
+      const g = cv.getContext("2d");
+      if (!g) return;
+      const W = cv.width;
+      const c = W / 2;
+      const max = c - 5;
+      const outer = semiMajorAu("neptune");
+      const sc = (a: number) => max * (0.14 + 0.86 * Math.sqrt(a / outer)); // 外ほど詰める（実際の比では内側が見えない）
+      g.clearRect(0, 0, W, W);
+      g.lineWidth = 1.2;
+      g.strokeStyle = "rgba(200,212,255,0.16)";
+      for (const k of PLANET_KEYS) {
+        g.beginPath();
+        g.arc(c, c, sc(semiMajorAu(k)), 0, Math.PI * 2);
+        g.stroke();
+      }
+      g.fillStyle = "#ffd36b";
+      g.beginPath();
+      g.arc(c, c, 4.5, 0, Math.PI * 2);
+      g.fill();
+      for (const k of PLANET_KEYS) {
+        const p = helio(k, ms);
+        const r = sc(Math.hypot(p.x, p.y));
+        const an = Math.atan2(p.y, p.x); // 黄道の北から見た図（反時計回りに公転）
+        const x = c + r * Math.cos(an);
+        const y = c - r * Math.sin(an);
+        g.fillStyle = COLORS[k];
+        g.beginPath();
+        g.arc(x, y, k === "earth" ? 4.6 : 3.4, 0, Math.PI * 2);
+        g.fill();
+        if (k === "earth") {
+          g.strokeStyle = "rgba(95,168,255,0.7)";
+          g.lineWidth = 1.4;
+          g.beginPath();
+          g.arc(x, y, 8, 0, Math.PI * 2);
+          g.stroke();
+        }
+      }
+    };
+
+    let lastDay = Number.NaN;
+    const render = (s: Sim) => {
+      sim = s;
+      root.toggleAttribute("data-paused", !s.playing);
+      if (playBtn) playBtn.setAttribute("aria-label", s.playing ? "日付を止める" : "日付を進める");
+      const sp = SPEEDS.find((o) => o.v === s.daysPerSec);
+      if (speedEl) speedEl.textContent = `速さ ${sp ? sp.label : `${s.daysPerSec}日`}/秒`; // 1 つの文字にする（釦の中で分かれると読み上げに余計な空白が入る）
+      const day = startOfDay(s.ms); // 出すのは手元の暦の日付なので、比べるのも手元の日付（世界標準時で比べると日本の 0〜9 時に止めた時に前の日が残る）
+      if (day !== lastDay) {
+        lastDay = day;
+        const txt = fmt.format(new Date(s.ms));
+        const rel = relText(s.ms);
+        dates.forEach((el) => (el.textContent = txt));
+        rels.forEach((el) => {
+          el.textContent = rel;
+          el.classList.toggle("is-today", rel === "今日");
+        });
+        draw(s.ms);
+      }
+      if (root.hidden) root.hidden = false;
+    };
+
+    window.addEventListener("spark:simdate", (e) => {
+      const d = (e as CustomEvent<Sim>).detail;
+      if (d && typeof d.ms === "number") render(d);
+    });
+    window.dispatchEvent(new CustomEvent("spark:simdate:get"));
+
+    const send = (detail: Record<string, unknown>) => window.dispatchEvent(new CustomEvent("spark:simdate:set", { detail }));
+    root.addEventListener("click", (e) => {
+      const b = (e.target as Element).closest<HTMLButtonElement>("button");
+      if (!b) return;
+      if (b === toggle) {
+        const open = !root.hasAttribute("data-open");
+        root.toggleAttribute("data-open", open);
+        toggle.setAttribute("aria-expanded", String(open));
+        return;
+      }
+      if (!sim) return;
+      switch (b.dataset.t) {
+        case "play":
+          send({ playing: !sim.playing });
+          break;
+        case "back":
+          send({ date: sim.ms - MONTH_MS });
+          break;
+        case "fwd":
+          send({ date: sim.ms + MONTH_MS });
+          break;
+        case "speed": {
+          const now = sim.daysPerSec;
+          const i = SPEEDS.findIndex((o) => o.v === now);
+          send({ daysPerSec: SPEEDS[(i + 1) % SPEEDS.length].v, playing: true });
+          break;
+        }
+        case "today":
+          send({ today: true, playing: false });
+          break;
+      }
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && root.hasAttribute("data-open")) {
+        root.removeAttribute("data-open");
+        toggle?.setAttribute("aria-expanded", "false");
+      }
+    });
+  }
+</script>

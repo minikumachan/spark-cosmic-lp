@@ -1,6 +1,15 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
+// 最初の案内（dialog）は初回に自動で開くので、既存の試験では「見た」状態から始める。案内そのものは final.spec.ts で確かめる。
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem("spark:guide:v1", "seen");
+    } catch {}
+  });
+});
+
 // コズミック版 spark LP の品質ゲート（3D背景は装飾・内容はSSR HTML）
 
 test("ページ読込・主要セクション・a11y構造が揃う", async ({ page }) => {

@@ -56,3 +56,15 @@ export const site = {
     ],
   },
 } as const;
+
+// 旅の停留所（上の航路に出す順番）。惑星の名前と節の名前の組はここにだけ書く。
+// 並びは 3D のカメラ（CosmicStage の STOPS）と段階遷移（index.astro の STAGE_SEL）と同じにしておく。
+export const journey = [
+  { href: "#top", planet: "地球", label: "はじめに" },
+  { href: "#services", planet: "火星", label: site.sections.services.title },
+  { href: "#works", planet: "木星", label: site.sections.works.title },
+  { href: "#strengths", planet: "土星", label: site.sections.strengths.title },
+  { href: "#pricing", planet: "天王星", label: site.sections.pricing.title },
+  { href: "#faq", planet: "海王星", label: site.sections.faq.title },
+  { href: "#contact", planet: "銀河", label: site.cta.label },
+] as const;

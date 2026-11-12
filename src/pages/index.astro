@@ -4,6 +4,9 @@ import { getCollection } from "astro:content";
 import { site } from "../lib/content";
 import DeferredStage from "../components/three/cosmic/DeferredStage.tsx";
 import PlanetViewer from "../components/three/cosmic/PlanetViewer.tsx";
+import TopNav from "../components/ui/TopNav.astro";
+import TimeDock from "../components/ui/TimeDock.astro";
+import Guide from "../components/ui/Guide.astro";
 import { buildMeta, ORGANIZATION_JSONLD } from "../lib/seo";
 const meta = buildMeta({
   title: "ブランドも、体験も、次のステージへ",
@@ -83,6 +86,9 @@ const ACC: Record<string, string> = {
         scroll-behavior: smooth;
         overflow-x: hidden;
         overflow-x: clip;
+        /* キーボードで移った先が上の航路・左下の時間の操作の下に隠れないように（WCAG 2.4.11） */
+        scroll-padding-top: 72px;
+        scroll-padding-bottom: 9.5rem;
       }
       @media (prefers-reduced-motion: reduce) {
         html {
@@ -232,6 +238,8 @@ const ACC: Record<string, string> = {
       /* ── HERO ── */
       .hero {
         min-height: 100vh; min-height: 100dvh;
+        padding-top: 60px; /* 上の航路の高さぶん */
+        padding-bottom: 9.5rem; /* 左下の時間の操作の高さぶん（最初の画面で数字に重ねない） */
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -807,7 +815,7 @@ const ACC: Record<string, string> = {
       }
       footer {
         border-top: 1px solid rgba(160, 175, 255, 0.14);
-        padding: 3rem 0;
+        padding: 3rem 0 9.5rem; /* 下は左下の時間の操作・右下の釦の高さぶん（いちばん下でも文字に重ねない） */
         font-family: "JetBrains Mono", monospace;
         font-size: 0.72rem;
         color: #8b93c4;
@@ -860,6 +868,21 @@ const ACC: Record<string, string> = {
           display: none;
         }
       }
+      /* スマホでは左下の時間の操作と重なるので、scroll ↓ を少し上げる */
+      @media (max-width: 640px) {
+        .scrollhint {
+          bottom: 5.6rem;
+        }
+        .hero {
+          padding-bottom: 4rem;
+        }
+        footer {
+          padding-bottom: 7rem;
+        }
+        html {
+          scroll-padding-bottom: 5.5rem;
+        }
+      }
     </style>
   </head>
   <body>
@@ -867,6 +890,7 @@ const ACC: Record<string, string> = {
     <div class="cosmic-bg" aria-hidden="true"></div>
     <DeferredStage client:only="react" />
     <PlanetViewer client:idle />
+    <TopNav />
 
     <!-- 右下FAB群（宇宙の音・惑星図鑑） -->
     <div class="fab-group">
@@ -877,10 +901,11 @@ const ACC: Record<string, string> = {
         <span aria-hidden="true">✦</span> 惑星図鑑
       </button>
     </div>
+    <TimeDock />
 
     <main id="main" class="content">
       <!-- HERO -->
-      <header class="hero">
+      <header class="hero" id="top">
         <div class="wrap">
           <p class="eyebrow">{hero.eyebrow}</p>
           <h1>{hero.title[0]}<br /><span class="accent">{hero.title[1]}</span></h1>
@@ -1058,6 +1083,7 @@ const ACC: Record<string, string> = {
         </div>
       </footer>
     </main>
+    <Guide />
 
     <script>
       const io = new IntersectionObserver(
@@ -1204,6 +1230,8 @@ const ACC: Record<string, string> = {
           if (i < 0 || i === currentStage) return;
           currentStage = i;
           updateDots(i);
+          // 上の航路が「いまどこか」を出すための知らせ（通常スクロールと step の両方）
+          window.dispatchEvent(new CustomEvent("spark:stage", { detail: { index: i, key: STAGE_KEYS[i], stageCount: stageEls.length } }));
           if (window.parent && window.parent !== window) {
             try {
               window.parent.postMessage(
@@ -1274,10 +1302,19 @@ const ACC: Record<string, string> = {
         // ── step モード（制御ステップ遷移） ──
         document.documentElement.classList.add("scroll-step");
 
-        let paused = false; // 惑星図鑑モーダル等が開いている間はネイティブ操作に委ねる
+        let viewerOpen = false;
+        // 案内の script はこの係より先に走り、自動で開いた知らせはここに届かない。初めの状態は dialog そのものから読む
+        let guideOpen = !!(document.getElementById("spark-guide") as HTMLDialogElement | null)?.open;
+        let paused = guideOpen; // 惑星図鑑モーダル・最初の案内が開いている間はネイティブ操作に委ねる
         window.addEventListener("cosmic:viewer", (e) => {
           const d = (e as CustomEvent).detail as { open?: boolean } | undefined;
-          paused = !!(d && d.open);
+          viewerOpen = !!(d && d.open);
+          paused = viewerOpen || guideOpen;
+        });
+        window.addEventListener("spark:guide", (e) => {
+          const d = (e as CustomEvent).detail as { open?: boolean } | undefined;
+          guideOpen = !!(d && d.open);
+          paused = viewerOpen || guideOpen;
         });
 
         // 停止点（高い節はビューポート単位でページめくり＝内容を隠さない）。カメラは scrollY 連動なので無改修。
@@ -1448,7 +1485,7 @@ const ACC: Record<string, string> = {
           "#faq": 5,
           "#contact": 6,
         };
-        document.querySelectorAll<HTMLAnchorElement>('a[href^="#"]').forEach((a) => {
+        document.querySelectorAll<HTMLAnchorElement>('a[href^="#"]:not([data-stop])').forEach((a) => {
           a.addEventListener("click", (e) => {
             const si = SEL_TO_STAGE[a.getAttribute("href") || ""];
             if (si != null) {
