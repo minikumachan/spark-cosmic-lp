@@ -13,16 +13,23 @@
 // 軽量ティア（tier.ts の LITE。スマホなど）では、横 2048 を超える絵を縮めた版（public/assets/planet/lite/）を読む。
 // ImageBitmap は展開した絵をメモリに持ち続けるので、全部で約 164MiB を約 96MiB に減らす。
 // 軽量ティアの 3D は等倍（dpr 1）で描くので見た目は変わらない。縮めた版と一覧は scripts/make_lite_textures.mjs が作る。
+// GPU を使わずに描いている端末（tier.ts の SOFT_GPU）では、横 512 まで縮めた版（public/assets/planet/soft/）を読む。
+// この端末では絵を GPU へ送る処理も CPU がするので、横 2048 の絵 1 枚で頁が 0.05〜0.15 秒止まっていた。
 import * as THREE from "three";
 import { useEffect } from "react";
 import { useLoader, useThree } from "@react-three/fiber";
-import { LITE } from "./tier";
+import { LITE, SOFT_GPU } from "./tier";
 import liteNames from "./lite-textures.json";
+import softNames from "./soft-textures.json";
 
 const LITE_SET = new Set<string>(LITE ? (liteNames as string[]) : []);
+const SOFT_SET = new Set<string>(SOFT_GPU ? (softNames as string[]) : []);
 function pick(url: string): string {
   const m = /^\/assets\/planet\/([^/]+)\.webp$/.exec(url);
-  return m && LITE_SET.has(m[1]) ? `/assets/planet/lite/${m[1]}.webp` : url;
+  if (!m) return url;
+  if (SOFT_SET.has(m[1])) return `/assets/planet/soft/${m[1]}.webp`;
+  if (LITE_SET.has(m[1])) return `/assets/planet/lite/${m[1]}.webp`;
+  return url;
 }
 
 const BITMAP = (() => {

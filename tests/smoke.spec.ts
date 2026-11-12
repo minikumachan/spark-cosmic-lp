@@ -91,7 +91,7 @@ test("惑星図鑑（鑑賞モード）が開き、Escで閉じる", async ({ pa
   await page.goto("/", { waitUntil: "networkidle" });
   const fab = page.locator("#viewer-open");
   await expect(fab).toBeVisible();
-  // PlanetViewer は client:idle。水和＋イベント購読まで挙動で待つ（headless では idle が遅延し得る）
+  // 図鑑は最初の表示の後に釦を待ち受け、初めて押された時に本体を読み込む。読み込みまで挙動で待つ
   await expect(async () => {
     await fab.click();
     await expect(page.locator('[role="dialog"]')).toBeVisible({

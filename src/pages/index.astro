@@ -3,7 +3,7 @@ import "../styles/fonts.css";
 import { getCollection } from "astro:content";
 import { site } from "../lib/content";
 import DeferredStage from "../components/three/cosmic/DeferredStage.tsx";
-import PlanetViewer from "../components/three/cosmic/PlanetViewer.tsx";
+import PlanetViewerLazy from "../components/three/cosmic/PlanetViewerLazy.tsx";
 import TopNav from "../components/ui/TopNav.astro";
 import TimeDock from "../components/ui/TimeDock.astro";
 import Guide from "../components/ui/Guide.astro";
@@ -1224,8 +1224,8 @@ const ACC: Record<string, string> = {
   <body>
     <a href="#main" class="skip-link">本文へスキップ</a>
     <div class="cosmic-bg" aria-hidden="true"></div>
-    <DeferredStage client:only="react" />
-    <PlanetViewer client:idle />
+    <DeferredStage client:afterpaint />
+    <PlanetViewerLazy client:afterpaint />
     <TopNav />
 
     <!-- 右下FAB群（宇宙の音・惑星図鑑） -->

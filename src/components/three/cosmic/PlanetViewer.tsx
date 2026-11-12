@@ -477,9 +477,13 @@ function GalaxyScene() {
   );
 }
 
-export default function PlanetViewer() {
-  const [open, setOpen] = useState(false);
-  const [idx, setIdx] = useState(0);
+// 初めて開く時は PlanetViewerLazy が読み込んでから描くので、その時の「開く」と天体をここで受け取る
+export default function PlanetViewer({ initialOpen = false, initialPlanet = null }: { initialOpen?: boolean; initialPlanet?: string | null } = {}) {
+  const [open, setOpen] = useState(initialOpen);
+  const [idx, setIdx] = useState(() => {
+    const i = initialPlanet ? PLANETS.findIndex((x) => x.key === initialPlanet) : -1;
+    return i >= 0 ? i : 0;
+  });
   const controls = useRef<Controls | null>(null);
   const selectorRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);

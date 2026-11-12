@@ -73,11 +73,23 @@ function securityHeaders() {
   };
 }
 
+// client:afterpaint … 最初の表示が済んでから島を読み込む（src/directives/afterpaint.ts）
+function afterPaintDirective() {
+  return {
+    name: 'spark-afterpaint-directive',
+    hooks: {
+      'astro:config:setup': ({ addClientDirective }) => {
+        addClientDirective({ name: 'afterpaint', entrypoint: './src/directives/afterpaint.ts' });
+      },
+    },
+  };
+}
+
 export default defineConfig({
   site: 'https://spark-lp.pages.dev',
   // dev ツールバーは下部に出て邪魔なので無効（本番ビルドには元々含まれない）
   devToolbar: { enabled: false },
-  integrations: [react(), sitemap(), securityHeaders()],
+  integrations: [react(), sitemap(), afterPaintDirective(), securityHeaders()],
   vite: {
     plugins: [
       FontaineTransform.vite({

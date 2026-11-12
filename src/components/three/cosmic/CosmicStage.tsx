@@ -18,7 +18,7 @@ import {
 import { useTexture, queueUpload, onGlCreated } from "./gpu";
 import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
-import { LITE } from "./tier";
+import { LITE, SOFT_GPU } from "./tier";
 import { helio, type PlanetKey } from "../../../lib/ephemeris";
 import { advance, simDateMs } from "../../../lib/simclock";
 
@@ -516,9 +516,9 @@ function SolarSystem() {
   return (
     <>
       {BODIES.map((b) => (
-        <Suspense key={b.key} fallback={null}>
+        <Staged key={b.key}>
           {b.key === "earth" ? <SolarEarth /> : <SolarBody b={b} />}
-        </Suspense>
+        </Staged>
       ))}
     </>
   );
@@ -1364,9 +1364,9 @@ function Comet() {
   });
   return (
     <group ref={grp} position={[20, 11, 0]}>
-      <Suspense fallback={null}>
+      <Staged>
         <CometNucleusMesh />
-      </Suspense>
+      </Staged>
       <sprite scale={[0.9, 0.9, 1]}>
         <spriteMaterial
           map={tex}
@@ -1940,6 +1940,65 @@ function useWarmup(delayMs = 700) {
   return warmed;
 }
 
+// 3D の部品は一度に出さず、順に 1 つずつ出す。GPU のある端末は 1 コマごと（全部で 14 コマ＝約 0.2 秒）、
+// GPU を使わずに描いている端末（tier.ts の SOFT_GPU）は 0.16 秒ごと。
+// 一度に全部出すと、部品の組み立てと最初の描画が 1 つの長い処理になり、その間は押しても反応しない
+// （2026-11-12 に測った。Lighthouse のスマホの模擬で 0.39 秒、GPU の無い Chromium で 0.4 秒）。
+// 部品のシェーダ（描き方の小さなプログラム）を裏で組み立ててから見せる。three.js の compileAsync で、
+// KHR_parallel_shader_compile があれば GPU の側の別の係が組み立てる。描く時にその場で組み立てると、その間は頁の処理全体が止まる
+// （2026-11-12 に GPU のある Chrome で測った。その場で組み立てた 3 コマは 0.045〜0.086 秒、裏で組み立てた 10 本は 1 コマ 0.011 秒）。
+// 裏で組み立てられない端末（拡張の無い端末・GPU を使わずに描く端末）と、効果の後処理（EffectComposer）を通して描く広い画面は、
+// 組み立てた物と描く時に要る物が食い違い得るので、今まで通りすぐ見せる。
+const ASYNC_COMPILE = MOBILE && !SOFT_GPU;
+function Reveal({ children }: { children: ReactNode }) {
+  const ref = useRef<THREE.Group>(null);
+  const gl = useThree((s) => s.gl);
+  const camera = useThree((s) => s.camera);
+  const scene = useThree((s) => s.scene);
+  const [visible, setVisible] = useState(
+    () => !ASYNC_COMPILE || !gl.extensions.has("KHR_parallel_shader_compile"),
+  );
+  useEffect(() => {
+    if (visible || !ref.current) return;
+    let alive = true;
+    const show = () => {
+      if (alive) setVisible(true);
+    };
+    gl.compileAsync(ref.current, camera, scene).then(show, show);
+    return () => {
+      alive = false;
+    };
+  }, [visible, gl, camera, scene]);
+  return (
+    <group ref={ref} visible={visible}>
+      {children}
+    </group>
+  );
+}
+// 絵や形を読み込む部品は、読み終えてから裏で組み立てて見せる
+function Staged({ children }: { children: ReactNode }) {
+  return (
+    <Suspense fallback={null}>
+      <Reveal>{children}</Reveal>
+    </Suspense>
+  );
+}
+
+const STAGGER_MS = 160;
+function useStagger(total: number) {
+  const [n, setN] = useState(1);
+  useEffect(() => {
+    if (n >= total) return;
+    if (SOFT_GPU) {
+      const id = window.setTimeout(() => setN((v) => v + 1), STAGGER_MS);
+      return () => window.clearTimeout(id);
+    }
+    const id = requestAnimationFrame(() => setN((v) => v + 1));
+    return () => cancelAnimationFrame(id);
+  }, [n, total]);
+  return n;
+}
+
 // ウォーム時に全シェーダを非同期コンパイル＋全テクスチャをGPUへ事前アップロード（1 フレームに 1 枚ずつ。gpu.ts の queueUpload）。
 // 遅れてデコードされるテクスチャを取りこぼさないよう、ウォームパスを数回反復する。
 function SceneWarmer({ warmed }: { warmed: boolean }) {
@@ -2022,7 +2081,9 @@ function SceneWarmer({ warmed }: { warmed: boolean }) {
     const schedule = () => {
       warmPass();
       if (++pass < 7) timer = window.setTimeout(schedule, 420);
-      else timer = window.setTimeout(forceGeometryUpload, 200);
+      // GPU の無い端末では、画面外の物まで全部描く数コマが 1 コマ 0.08 秒ほどになり頁を止めるので、先食いはしない
+      // （画面外の物は初めて見えた時に読み込まれる。この端末ではそもそも滑らかには動かない）
+      else if (!SOFT_GPU) timer = window.setTimeout(forceGeometryUpload, 200);
     };
     let f = 0;
     const startAfterFrames = () => {
@@ -2048,6 +2109,8 @@ function Rig() {
   const smoothScroll = useRef(0); // スクロール入力の平滑化値（離散ホイールを滑らかに）
   const warmed = useWarmup(); // LCP後アイドルで全要素を先行ウォーム＝スクロール中のストール(カクつき)を消す
   const showGalaxy = useScrollPast(0.32) || warmed; // 銀河は終盤接近時 or アイドルウォーム時にマウント
+  // 出す順（useStagger）。今日の太陽系を先に、背景の飾りを後に
+  const shown = useStagger(14);
   useEffect(() => {
     const measure = () => {
       centers.current = STOPS.map((s) => {
@@ -2171,25 +2234,76 @@ function Rig() {
         decay={0}
       />
       <directionalLight position={[0, 6, 2]} intensity={0.18} color="#6f9cff" />
-      <Nebula />
-      <NebulaClouds />
-      <DistantGalaxies />
-      <MilkyWay />
-      <ConstellationLines />
-      <Stars />
-      <Suspense fallback={null}>
-        <Sun />
-      </Suspense>
-      <ShootingStars />
-      <Comet />
-      <Suspense fallback={null}>
-        <AsteroidBelt />
-        {showGalaxy && <KuiperBelt />}
-      </Suspense>
-      {showGalaxy && <Galaxy />}
-      <OrbitRings />
-      <SolarSystem />
-      <Moons />
+      {/* 並びは元のまま（描く順を変えない）。数字は出す順番（useStagger）。Staged は裏で組み立ててから見せる */}
+      {shown > 6 && (
+        <Staged>
+          <Nebula />
+        </Staged>
+      )}
+      {shown > 7 && (
+        <Staged>
+          <NebulaClouds />
+        </Staged>
+      )}
+      {shown > 8 && (
+        <Staged>
+          <DistantGalaxies />
+        </Staged>
+      )}
+      {shown > 5 && (
+        <Staged>
+          <MilkyWay />
+        </Staged>
+      )}
+      {shown > 9 && (
+        <Staged>
+          <ConstellationLines />
+        </Staged>
+      )}
+      <Staged>
+        <Stars />
+      </Staged>
+      {shown > 1 && (
+        <Staged>
+          <Sun />
+        </Staged>
+      )}
+      {shown > 10 && (
+        <Staged>
+          <ShootingStars />
+        </Staged>
+      )}
+      {shown > 11 && (
+        <Staged>
+          <Comet />
+        </Staged>
+      )}
+      {shown > 12 && (
+        <Staged>
+          <AsteroidBelt />
+        </Staged>
+      )}
+      {showGalaxy && shown > 12 && (
+        <Staged>
+          <KuiperBelt />
+        </Staged>
+      )}
+      {showGalaxy && shown > 13 && (
+        <Staged>
+          <Galaxy />
+        </Staged>
+      )}
+      {shown > 3 && (
+        <Staged>
+          <OrbitRings />
+        </Staged>
+      )}
+      {shown > 2 && <SolarSystem />}
+      {shown > 4 && (
+        <Staged>
+          <Moons />
+        </Staged>
+      )}
       {!MOBILE && (
         <EffectComposer>
           <Bloom
