@@ -91,10 +91,12 @@ function Nebula() {
 }
 
 // ── earth（hero・フル：雲/大気/夜景/法線） ──
+// 大気の光は裏側の面（BackSide）で描く。裏の面は法線が視線と逆を向くので abs を取り、惑星の輪郭で明るく・殻の外縁で 0 にする。
+// （max(dot,0) のままだと常に 0 になり、縁が一色の硬い輪に見えていた）
 const atmoVert = /* glsl */ `varying vec3 vN; varying vec3 vView;
 void main(){ vec4 vp=modelViewMatrix*vec4(position,1.0); vN=normalize(normalMatrix*normal); vView=normalize(-vp.xyz); gl_Position=projectionMatrix*vp; }`;
 const atmoFrag = /* glsl */ `varying vec3 vN; varying vec3 vView; uniform vec3 uColor;
-void main(){ float f=pow(1.0-max(dot(vN,vView),0.0),2.8); gl_FragColor=vec4(uColor*f*0.45,f); }`;
+void main(){ float f=smoothstep(0.0,0.3,abs(dot(vN,vView))); gl_FragColor=vec4(uColor*f*0.45,f); }`;
 function Earth() {
   const earth = useRef<THREE.Mesh>(null);
   const clouds = useRef<THREE.Mesh>(null);
@@ -208,7 +210,7 @@ function SaturnRing() {
   );
 }
 const rimFrag = /* glsl */ `varying vec3 vN; varying vec3 vView; uniform vec3 uColor;
-void main(){ float f=pow(1.0-max(dot(vN,vView),0.0),3.0); gl_FragColor=vec4(uColor*f*0.5,f); }`;
+void main(){ float f=smoothstep(0.0,0.3,abs(dot(vN,vView))); f*=f; gl_FragColor=vec4(uColor*f*0.4,f); }`;
 function AtmosphereRim({ color }: { color: string }) {
   const u = useMemo(
     () => ({ uColor: { value: new THREE.Color(color) } }),
@@ -1047,31 +1049,33 @@ function Sun() {
         <sphereGeometry args={[2.4, 48, 48]} />
         <meshBasicMaterial map={tex} toneMapped={false} fog={false} />
       </mesh>
-      <mesh>
-        <sphereGeometry args={[3.1, 24, 24]} />
-        <meshBasicMaterial
+      {/* コロナ。半透明の球だと縁が硬い円盤に見えるので、外へ向かって薄くなる光の板（常にカメラを向く）にする。
+          板は太陽の中心にあり、内側は太陽の表面に隠れて縁から外だけが光る。 */}
+      <sprite scale={[12, 12, 1]}>
+        <spriteMaterial
+          map={coronaTexture()}
           color="#ffd98a"
           transparent
-          opacity={0.28}
+          opacity={0.9}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
           fog={false}
         />
-      </mesh>
-      <mesh>
-        <sphereGeometry args={[5.2, 24, 24]} />
-        <meshBasicMaterial
-          color="#ffb84d"
+      </sprite>
+      <sprite scale={[32, 32, 1]}>
+        <spriteMaterial
+          map={coronaTexture()}
+          color="#ffb060"
           transparent
-          opacity={0.12}
+          opacity={0.16}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
           fog={false}
         />
-      </mesh>
-      <mesh>
-        <sphereGeometry args={[12, 20, 20]} />
-        <meshBasicMaterial
+      </sprite>
+      <sprite scale={[80, 80, 1]}>
+        <spriteMaterial
+          map={coronaTexture()}
           color="#ff9a3d"
           transparent
           opacity={0.05}
@@ -1079,9 +1083,31 @@ function Sun() {
           depthWrite={false}
           fog={false}
         />
-      </mesh>
+      </sprite>
     </group>
   );
+}
+
+// コロナの光（中心から外へ (1-r)^2.2 で薄くなる）。段の無い減り方にするため止まりを細かく打つ。
+let _corona: THREE.Texture | null = null;
+function coronaTexture(): THREE.Texture {
+  if (_corona) return _corona;
+  const c = document.createElement("canvas");
+  c.width = c.height = 256;
+  const ctx = c.getContext("2d");
+  if (ctx) {
+    const g = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+    for (let i = 0; i <= 16; i++) {
+      const r = i / 16;
+      g.addColorStop(r, `rgba(255,255,255,${Math.pow(1 - r, 2.2).toFixed(4)})`);
+    }
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 256, 256);
+  }
+  _corona = new THREE.CanvasTexture(c);
+  _corona.generateMipmaps = false;
+  _corona.minFilter = THREE.LinearFilter;
+  return _corona;
 }
 
 // 柔らかい放射状テクスチャ（星雲雲/銀河/彗星のグローに流用・キャンバス生成）

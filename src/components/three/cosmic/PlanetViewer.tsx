@@ -39,8 +39,9 @@ const PLANETS: V[] = [
 
 const atmoVert = /* glsl */ `varying vec3 vN; varying vec3 vView;
 void main(){ vec4 vp=modelViewMatrix*vec4(position,1.0); vN=normalize(normalMatrix*normal); vView=normalize(-vp.xyz); gl_Position=projectionMatrix*vp; }`;
+// 大気の光は裏側の面で描くので abs を取る（max(dot,0) だと常に 0 で、縁が一色の硬い輪になっていた）
 const rimFrag = /* glsl */ `varying vec3 vN; varying vec3 vView; uniform vec3 uColor;
-void main(){ float f=pow(1.0-max(dot(vN,vView),0.0),3.0); gl_FragColor=vec4(uColor*f*0.6,f); }`;
+void main(){ float f=smoothstep(0.0,0.3,abs(dot(vN,vView))); f*=f; gl_FragColor=vec4(uColor*f*0.35,f); }`;
 
 function ViewerRing() {
   const tex = useTexture("/assets/planet/saturn_ring.webp");
@@ -95,14 +96,13 @@ function ViewerPlanet({ p, pos }: { p: V; pos: THREE.Vector3 }) {
       </mesh>
       {p.sun && (
         <>
-          <mesh scale={1.22}>
-            <sphereGeometry args={[1, 32, 32]} />
-            <meshBasicMaterial color="#ffd98a" transparent opacity={0.22} blending={THREE.AdditiveBlending} depthWrite={false} />
-          </mesh>
-          <mesh scale={1.7}>
-            <sphereGeometry args={[1, 32, 32]} />
-            <meshBasicMaterial color="#ffb84d" transparent opacity={0.1} blending={THREE.AdditiveBlending} depthWrite={false} />
-          </mesh>
+          {/* コロナ。半透明の球だと縁が硬い円盤に見えるので、外へ向かって薄くなる光の板にする */}
+          <sprite scale={[4, 4, 1]}>
+            <spriteMaterial map={coronaTexture()} color="#ffd98a" transparent opacity={1} blending={THREE.AdditiveBlending} depthWrite={false} />
+          </sprite>
+          <sprite scale={[7, 7, 1]}>
+            <spriteMaterial map={coronaTexture()} color="#ffb84d" transparent opacity={0.25} blending={THREE.AdditiveBlending} depthWrite={false} />
+          </sprite>
         </>
       )}
       {p.ring && <ViewerRing />}
@@ -212,6 +212,28 @@ function ViewerCameraRig({ target, controls, galaxy }: { target: THREE.Vector3; 
 
 /* ───────── 銀河ビュー：渦巻銀河（天文学的数の星・差動回転）＋衛星銀河群（銀河の中の銀河）
    ＋無数の遠方銀河（集まる銀河／宇宙の大規模構造）＋太陽系の位置。拡大で星・銀河が見えてくる。 ───────── */
+// 太陽のコロナの光（中心から外へ (1-r)^2.2 で薄くなる）。段の無い減り方にするため止まりを細かく打つ。
+let _corona: THREE.Texture | null = null;
+function coronaTexture(): THREE.Texture {
+  if (_corona) return _corona;
+  const c = document.createElement("canvas");
+  c.width = c.height = 256;
+  const ctx = c.getContext("2d");
+  if (ctx) {
+    const g = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+    for (let i = 0; i <= 16; i++) {
+      const r = i / 16;
+      g.addColorStop(r, `rgba(255,255,255,${Math.pow(1 - r, 2.2).toFixed(4)})`);
+    }
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 256, 256);
+  }
+  _corona = new THREE.CanvasTexture(c);
+  _corona.generateMipmaps = false;
+  _corona.minFilter = THREE.LinearFilter;
+  return _corona;
+}
+
 let _glow: THREE.Texture | null = null;
 function galaxyGlow(): THREE.Texture {
   if (_glow) return _glow;
