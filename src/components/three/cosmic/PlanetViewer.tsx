@@ -5,6 +5,13 @@ import { useTexture, onGlCreated } from "./gpu";
 import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import * as THREE from "three";
 import { LITE } from "./tier";
+import { FinalCurve, useToneCurve } from "./look";
+
+// 後処理を通さない端末だけ、描き手に色の曲線を入れる（look.ts）
+function ViewerTone() {
+  useToneCurve(LITE);
+  return null;
+}
 
 /* 惑星鑑賞モード：フルスクリーン・OrbitControlsで自由に回転/ズーム。
    惑星セレクタ＋情報パネル。サイトを開くだけで動作（事前準備不要）。
@@ -596,9 +603,11 @@ export default function PlanetViewer({ initialOpen = false, initialPlanet = null
           </Suspense>
         )}
         <ViewerCameraRig target={vpos(p.key)} controls={controls} galaxy={p.galaxy} />
+        <ViewerTone />
         {!LITE && (
           <EffectComposer>
             <Bloom luminanceThreshold={0.68} luminanceSmoothing={0.22} intensity={0.42} mipmapBlur radius={0.4} />
+            <FinalCurve />
           </EffectComposer>
         )}
         <OrbitControls ref={controls as never} enablePan={!!p.galaxy} zoomToCursor={!!p.galaxy} autoRotate={!p.galaxy} autoRotateSpeed={0.4} minDistance={p.galaxy ? 1.4 : 2.2} maxDistance={p.galaxy ? 170 : 9} enableDamping dampingFactor={0.07} />

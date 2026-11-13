@@ -19,6 +19,7 @@ import { useTexture, queueUpload, onGlCreated } from "./gpu";
 import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
 import { LITE, SOFT_GPU } from "./tier";
+import { FinalCurve, useToneCurve } from "./look";
 import { helio, type PlanetKey } from "../../../lib/ephemeris";
 import { advance, simDateMs } from "../../../lib/simclock";
 
@@ -2177,6 +2178,7 @@ function Rig() {
   const p1 = useMemo(() => new THREE.Vector3(), []);
   const l1 = useMemo(() => new THREE.Vector3(), []);
   const inited = useRef(false);
+  useToneCurve(MOBILE); // 後処理を通さない端末だけ、描き手に曲線を入れる
   useFrame(({ clock, camera }, delta) => {
     const t = clock.elapsedTime;
     const c = centers.current;
@@ -2340,6 +2342,7 @@ function Rig() {
             radius={0.6}
           />
           <Vignette eskil={false} offset={0.28} darkness={0.62} />
+          <FinalCurve />
         </EffectComposer>
       )}
     </>
