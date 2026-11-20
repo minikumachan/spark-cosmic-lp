@@ -315,6 +315,12 @@ const ACC: Record<string, string> = {
         margin: 1.4rem 0;
         max-width: 13.194em; /* 18ch 相当（Clash Display の 0 は 0.733 字）。ch は書体が届く前の代わりの書体で幅が変わり、折り返しが変わって画面がずれるため、届いた後と同じ幅の em で書く */
         text-shadow: 0 4px 60px rgba(0, 0, 0, 0.6);
+        line-break: strict;
+        word-break: auto-phrase;
+      }
+      /* 1 行目は「ブランドも、」「体験も、」の句ごとに折る（Safari は auto-phrase が効かないため） */
+      .hero h1 .ph {
+        display: inline-block;
       }
       .lead {
         max-width: 19.152em; /* 38ch 相当（Zen Kaku の 0 は 0.504 字） */
@@ -1247,7 +1253,7 @@ const ACC: Record<string, string> = {
       <header class="hero" id="top">
         <div class="wrap">
           <p class="eyebrow">{hero.eyebrow}</p>
-          <h1>{hero.title[0]}<br /><span class="accent">{hero.title[1]}</span></h1>
+          <h1>{hero.title[0].split(/(?<=、)/).map((p) => <span class="ph">{p}</span>)}<br /><span class="accent">{hero.title[1]}</span></h1>
           <p class="lead">{hero.lead}</p>
           <div class="cta">
             <a class="btn" href={hero.primary.href}>{hero.primary.label}</a>
