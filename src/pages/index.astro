@@ -318,7 +318,7 @@ const ACC: Record<string, string> = {
         line-break: strict;
         word-break: auto-phrase;
       }
-      /* 1 行目は「ブランドも、」「体験も、」の句ごとに折る（Safari は auto-phrase が効かないため） */
+      /* 「ブランドも、」「体験も、」「次の」「ステージへ。」の句ごとに折る（Safari は auto-phrase が効かず、幅 320 で「へ。」だけが落ちたため） */
       .hero h1 .ph {
         display: inline-block;
       }
@@ -1253,7 +1253,7 @@ const ACC: Record<string, string> = {
       <header class="hero" id="top">
         <div class="wrap">
           <p class="eyebrow">{hero.eyebrow}</p>
-          <h1>{hero.title[0].split(/(?<=、)/).map((p) => <span class="ph">{p}</span>)}<br /><span class="accent">{hero.title[1]}</span></h1>
+          <h1>{hero.title[0].split(/(?<=、)/).map((p) => <span class="ph">{p}</span>)}<br /><span class="accent">{hero.title[1].split(/(?<=の)/).map((p) => <span class="ph">{p}</span>)}</span></h1>
           <p class="lead">{hero.lead}</p>
           <div class="cta">
             <a class="btn" href={hero.primary.href}>{hero.primary.label}</a>
